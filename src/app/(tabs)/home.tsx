@@ -12,8 +12,6 @@ import { colors, font, gradients, radii, shadow, spacing } from '@/theme';
 
 const tiles = [
   { key: 'deep', title: 'AI Deep Dives', sub: 'Personalized insights', icon: 'analytics-outline', bg: '#EDE9FE', tint: '#7C3AED', href: '/deep-dives' },
-  { key: 'know', title: 'Knowledge', sub: 'Learn & grow', icon: 'book-outline', bg: '#DCFCE7', tint: '#10B981', href: '/knowledge' },
-  { key: 'ex', title: 'Exercises', sub: 'Breathe & relax', icon: 'heart-outline', bg: '#DBEAFE', tint: '#2563EB', href: '/(tabs)/practice' },
   { key: 'prog', title: 'Progress', sub: 'Track wellness', icon: 'trending-up-outline', bg: '#FCE7F3', tint: '#EC4899', href: '/(tabs)/tracker' },
 ] as const;
 

@@ -28,7 +28,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="home" options={{ title: 'Home', tabBarIcon: icon('home-outline') }} />
       <Tabs.Screen name="tracker" options={{ title: 'Tracker', tabBarIcon: icon('trending-up-outline') }} />
       <Tabs.Screen name="diary" options={{ title: 'Diary', tabBarIcon: icon('book-outline') }} />
-      <Tabs.Screen name="practice" options={{ title: 'Practice', tabBarIcon: icon('barbell-outline') }} />
+      {/* Exercises and Knowledge are set aside for now: hidden from the tab bar, screens kept. */}
+      <Tabs.Screen name="practice" options={{ href: null }} />
       <Tabs.Screen name="community" options={{ title: 'Community', tabBarIcon: icon('people-outline') }} />
     </Tabs>
   );
