@@ -52,7 +52,8 @@
     "test:rls": "node --env-file=.env scripts/test-rls.mjs",
     "test:checkin": "node --env-file=.env scripts/test-checkin.mjs",
     "test:deep-dives": "node --env-file=.env scripts/test-deep-dives.mjs",
-    "test:rag": "node --env-file=.env scripts/test-rag.mjs"
+    "test:rag": "node --env-file=.env scripts/test-rag.mjs",
+    "test:untangle": "node --env-file=.env scripts/test-untangle.mjs"
   },
   "private": true
 }

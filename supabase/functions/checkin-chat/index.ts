@@ -11,7 +11,7 @@
 import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
 import { buildCheckinSystemPrompt, START_CHECKIN_MESSAGE, type UserContext } from '../_shared/prompts.ts';
-import { indexMissing, searchCheckins } from '../_shared/rag.ts';
+import { indexMissing, relatedConversations } from '../_shared/rag.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseLanguage, parseMessages } from '../_shared/validation.ts';
 
 /** How many older conversations RAG may add to the prompt. Each is a whole check-in, so keep it small. */
@@ -40,25 +40,7 @@ async function findRelated(
     }
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     if (!lastUser) return [];
-
-    const matches = (await searchCheckins(db, embedder, lastUser.content, 6))
-      .filter((m) => !recentIds.includes(m.checkin_id))
-      .slice(0, MAX_RELATED);
-    if (!matches.length) return [];
-
-    const { data, error } = await db
-      .from('checkins')
-      .select('id, messages')
-      .in('id', matches.map((m) => m.checkin_id));
-    if (error) throw error;
-    const messagesById = new Map((data ?? []).map((c) => [c.id, c.messages as ChatMessage[]]));
-
-    return matches.map((m) => ({
-      created_at: m.created_at,
-      title: m.title,
-      topic: m.topic_title && m.topic !== 'all' ? `${m.topic_title}: ${m.chunk_summary}` : m.chunk_summary,
-      messages: messagesById.get(m.checkin_id) ?? [],
-    }));
+    return await relatedConversations(db, embedder, lastUser.content, { excludeIds: recentIds, max: MAX_RELATED });
   } catch (err) {
     console.error('Finding related check-ins failed:', err);
     return [];

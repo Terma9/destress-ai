@@ -4,47 +4,26 @@
  * Messages can be typed or spoken; spoken ones are transcribed and sent automatically.
  */
 import { Ionicons } from '@expo/vector-icons';
-import {
-  AudioModule,
-  RecordingPresets,
-  setAudioModeAsync,
-  useAudioRecorder,
-  useAudioRecorderState,
-} from 'expo-audio';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
-  Linking,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  type ChatMessage,
-  type CheckinResult,
-  completeCheckin,
-  streamCheckinReply,
-  transcribeAudio,
-} from '@/ai/checkinClient';
+import { type ChatMessage, type CheckinResult, completeCheckin, streamCheckinReply } from '@/ai/checkinClient';
+import { CrisisCard, MessageBubble, TypingBubble, VoiceComposer } from '@/components/chat';
 import { moods } from '@/data/content';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, font, radii, spacing } from '@/theme';
 
-type Status = 'replying' | 'idle' | 'recording' | 'transcribing' | 'saving' | 'done';
-
-const MAX_RECORDING_MS = 2 * 60 * 1000;
-
-const formatDuration = (ms: number) => {
-  const s = Math.floor(ms / 1000);
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-};
+type Status = 'replying' | 'idle' | 'saving' | 'done';
 
 export default function CheckinChat() {
   const router = useRouter();
@@ -53,13 +32,11 @@ export default function CheckinChat() {
   const recordActivity = useAppStore((s) => s.recordActivity);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [draft, setDraft] = useState('');
   const [status, setStatus] = useState<Status>('replying');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
-
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const recording = useAudioRecorderState(recorder);
+  /** True while the composer is recording or transcribing. */
+  const [voiceBusy, setVoiceBusy] = useState(false);
 
   /** Asks the AI for its next message and streams it into the conversation. */
   const requestReply = async (history: ChatMessage[]) => {
@@ -87,63 +64,6 @@ export default function CheckinChat() {
     setMessages(history);
     requestReply(history);
   };
-
-  const send = () => {
-    const text = draft.trim();
-    if (!text || status !== 'idle') return;
-    setDraft('');
-    sendText(text);
-  };
-
-  const startRecording = async () => {
-    if (status !== 'idle') return;
-    setError(null);
-    try {
-      const { granted } = await AudioModule.requestRecordingPermissionsAsync();
-      if (!granted) {
-        setError('Microphone access is off. Allow it in your settings to speak your check-in.');
-        return;
-      }
-      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
-      await recorder.prepareToRecordAsync();
-      recorder.record();
-      setStatus('recording');
-    } catch (err) {
-      setError(`Couldn't start recording: ${(err as Error).message}`);
-      setStatus('idle');
-    }
-  };
-
-  /** Stops recording, transcribes it and sends the text as the user's message. */
-  const stopRecording = async () => {
-    if (status !== 'recording') return;
-    setStatus('transcribing');
-    try {
-      await recorder.stop();
-      if (!recorder.uri) throw new Error('No recording was saved.');
-      const text = await transcribeAudio(recorder.uri);
-      if (!text) {
-        setError("I didn't catch that. Try again or type your message.");
-        setStatus('idle');
-        return;
-      }
-      sendText(text);
-    } catch (err) {
-      setError((err as Error).message);
-      setStatus('idle');
-    }
-  };
-
-  const cancelRecording = async () => {
-    if (status !== 'recording') return;
-    await recorder.stop();
-    setStatus('idle');
-  };
-
-  // Recordings stop on their own at the time limit.
-  useEffect(() => {
-    if (status === 'recording' && recording.durationMillis >= MAX_RECORDING_MS) stopRecording();
-  }, [status, recording.durationMillis]);
 
   const finish = async () => {
     setStatus('saving');
@@ -183,15 +103,9 @@ export default function CheckinChat() {
             onContentSizeChange={() => scrollRef.current?.scrollToEnd({ animated: true })}
             keyboardShouldPersistTaps="handled">
             {messages.map((m, i) => (
-              <View key={i} style={[styles.bubble, m.role === 'user' ? styles.userBubble : styles.aiBubble]}>
-                <Text style={m.role === 'user' ? styles.userText : styles.aiText}>{m.content}</Text>
-              </View>
+              <MessageBubble key={i} message={m} />
             ))}
-            {waitingForFirstWord && (
-              <View style={[styles.bubble, styles.aiBubble]}>
-                <ActivityIndicator size="small" color={colors.textFaint} />
-              </View>
-            )}
+            {waitingForFirstWord && <TypingBubble />}
             {error && (
               <View style={styles.errorBox}>
                 <Text style={styles.errorText}>{error}</Text>
@@ -207,8 +121,8 @@ export default function CheckinChat() {
           <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
             {hasUserMessage && (
               <Pressable
-                style={[styles.finishBtn, status !== 'idle' && styles.disabled]}
-                disabled={status !== 'idle'}
+                style={[styles.finishBtn, (status !== 'idle' || voiceBusy) && styles.disabled]}
+                disabled={status !== 'idle' || voiceBusy}
                 onPress={finish}>
                 {status === 'saving' ? (
                   <ActivityIndicator size="small" color={colors.primary} />
@@ -220,55 +134,12 @@ export default function CheckinChat() {
                 </Text>
               </Pressable>
             )}
-            {status === 'recording' ? (
-              <View style={styles.recordBar}>
-                <Pressable onPress={cancelRecording} hitSlop={8} accessibilityLabel="Cancel recording">
-                  <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
-                </Pressable>
-                <View style={styles.recDot} />
-                <Text style={styles.recText}>
-                  Recording {formatDuration(recording.durationMillis)}
-                  <Text style={styles.recLimit}> / {formatDuration(MAX_RECORDING_MS)}</Text>
-                </Text>
-                <Pressable style={styles.stopBtn} onPress={stopRecording} accessibilityLabel="Stop and send">
-                  <Ionicons name="arrow-up" size={20} color={colors.white} />
-                </Pressable>
-              </View>
-            ) : status === 'transcribing' ? (
-              <View style={styles.recordBar}>
-                <ActivityIndicator size="small" color={colors.primary} />
-                <Text style={styles.recText}>Transcribing…</Text>
-              </View>
-            ) : (
-              <View style={styles.inputRow}>
-                <TextInput
-                  value={draft}
-                  onChangeText={setDraft}
-                  placeholder="Write or tap the mic…"
-                  placeholderTextColor={colors.textFaint}
-                  style={styles.input}
-                  multiline
-                  editable={status !== 'saving'}
-                />
-                {draft.trim() ? (
-                  <Pressable
-                    style={[styles.sendBtn, status !== 'idle' && styles.disabled]}
-                    disabled={status !== 'idle'}
-                    onPress={send}
-                    accessibilityLabel="Send">
-                    <Ionicons name="arrow-up" size={20} color={colors.white} />
-                  </Pressable>
-                ) : (
-                  <Pressable
-                    style={[styles.micBtn, status !== 'idle' && styles.disabled]}
-                    disabled={status !== 'idle'}
-                    onPress={startRecording}
-                    accessibilityLabel="Speak your message">
-                    <Ionicons name="mic" size={20} color={colors.white} />
-                  </Pressable>
-                )}
-              </View>
-            )}
+            <VoiceComposer
+              disabled={status !== 'idle'}
+              onSend={sendText}
+              onError={setError}
+              onBusyChange={setVoiceBusy}
+            />
           </View>
         </>
       )}
@@ -288,20 +159,7 @@ function Summary({ result, onDone, bottomInset }: { result: CheckinResult; onDon
 
   return (
     <ScrollView contentContainerStyle={[styles.summary, { paddingBottom: bottomInset + spacing.xl }]}>
-      {c.risk_level !== 'none' && (
-        <View style={styles.crisis}>
-          <Text style={styles.crisisTitle}>You don't have to carry this alone</Text>
-          <Text style={styles.crisisBody}>
-            If things feel too heavy, please talk to someone now. TelefonSeelsorge is free, anonymous and
-            available 24/7.
-          </Text>
-          <Pressable style={styles.crisisBtn} onPress={() => Linking.openURL('tel:08001110111')}>
-            <Ionicons name="call" size={16} color={colors.white} />
-            <Text style={styles.crisisBtnText}>Call 0800 111 0 111</Text>
-          </Pressable>
-          <Text style={styles.crisisNote}>In an emergency, call 112.</Text>
-        </View>
-      )}
+      {c.risk_level !== 'none' && <CrisisCard />}
 
       <View style={styles.summaryCard}>
         <Text style={styles.summaryEmoji}>{mood?.emoji ?? '🙂'}</Text>
@@ -345,11 +203,6 @@ const styles = StyleSheet.create({
   headerTitle: { ...font.h3, color: colors.text },
   list: { flex: 1 },
   listContent: { padding: spacing.lg, gap: spacing.sm },
-  bubble: { maxWidth: '85%', borderRadius: radii.lg, paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.md + 2 },
-  aiBubble: { alignSelf: 'flex-start', backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: colors.primary },
-  aiText: { ...font.body, color: colors.text, lineHeight: 21 },
-  userText: { ...font.body, color: colors.white, lineHeight: 21 },
   errorBox: { alignSelf: 'stretch', backgroundColor: '#FEF2F2', borderRadius: radii.md, padding: spacing.md, gap: 4 },
   errorText: { ...font.small, color: '#B91C1C' },
   errorRetry: { ...font.small, color: colors.primary, fontWeight: '600' },
@@ -364,74 +217,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#EFF6FF',
   },
   finishText: { color: colors.primary, fontWeight: '600', fontSize: 14 },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
-  input: {
-    flex: 1,
-    minHeight: 44,
-    maxHeight: 120,
-    backgroundColor: colors.cardAlt,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingTop: 11,
-    paddingBottom: 11,
-    ...font.body,
-    color: colors.text,
-  },
-  sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  micBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.purple,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recordBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 44,
-    paddingLeft: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: '#FEF2F2',
-  },
-  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
-  recText: { ...font.body, color: colors.text, fontWeight: '600', flex: 1 },
-  recLimit: { color: colors.textFaint, fontWeight: '400' },
-  stopBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   disabled: { opacity: 0.45 },
   summary: { padding: spacing.xl, gap: spacing.lg },
-  crisis: { backgroundColor: '#FFF7ED', borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: '#FED7AA' },
-  crisisTitle: { ...font.title, color: '#9A3412' },
-  crisisBody: { ...font.body, color: '#7C2D12', lineHeight: 20 },
-  crisisBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#EA580C',
-    borderRadius: radii.pill,
-    paddingVertical: spacing.md,
-    marginTop: spacing.xs,
-  },
-  crisisBtnText: { color: colors.white, fontWeight: '600', fontSize: 15 },
-  crisisNote: { ...font.small, color: '#9A3412', textAlign: 'center' },
   summaryCard: { backgroundColor: colors.cardAlt, borderRadius: radii.lg, padding: spacing.xl, borderWidth: 1, borderColor: colors.border, alignItems: 'center', gap: spacing.sm },
   summaryEmoji: { fontSize: 40 },
   summaryTitle: { ...font.h3, color: colors.text, textAlign: 'center' },

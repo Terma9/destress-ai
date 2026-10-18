@@ -46,3 +46,9 @@ export function parseDay(body: unknown): string {
   }
   return new Date().toISOString().slice(0, 10);
 }
+
+/** A 0–10 stress intensity as sent by the app, or null if missing or invalid. */
+export function parseIntensity(body: unknown): number | null {
+  const value = (body as { intensity?: unknown })?.intensity;
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10 ? value : null;
+}

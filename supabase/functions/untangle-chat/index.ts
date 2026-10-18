@@ -1,0 +1,61 @@
+/**
+ * untangle-chat — one turn of the short Untangle conversation.
+ *
+ * Request:  POST { messages: [...], intensity: 0–10 }  (the first user message is the problem)
+ * Response: the AI's next question, streamed as plain text.
+ *
+ * The AI asks at most a few questions to understand the problem, using
+ * everything the app knows about the user, then points them to "Make my plan".
+ */
+import { withSupabase } from 'npm:@supabase/server@1';
+import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
+import { buildUntangleChatPrompt, loadUntangleContext } from '../_shared/untangle.ts';
+import { INVALID_MESSAGES_ERROR, parseIntensity, parseMessages } from '../_shared/validation.ts';
+
+export default {
+  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+    if (req.method !== 'POST') {
+      return Response.json({ error: 'Use POST.' }, { status: 405 });
+    }
+    const body = await req.json().catch(() => null);
+    const messages = parseMessages(body);
+    const intensity = parseIntensity(body);
+    if (!messages || messages[0]?.role !== 'user' || intensity === null) {
+      return Response.json(
+        { error: `${INVALID_MESSAGES_ERROR} Start with the user's problem and send intensity 0–10.` },
+        { status: 400 },
+      );
+    }
+
+    let system: string;
+    let llm;
+    try {
+      const context = await loadUntangleContext(ctx.supabase, getEmbedder(), messages);
+      const answered = messages.filter((m) => m.role === 'user').length - 1;
+      system = buildUntangleChatPrompt(context, intensity, answered);
+      llm = getLLM();
+    } catch (err) {
+      console.error('Preparing Untangle chat failed:', err);
+      return Response.json({ error: 'Could not start the conversation. Try again.' }, { status: 500 });
+    }
+
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream<Uint8Array>({
+      async start(controller) {
+        try {
+          for await (const chunk of llm.streamChat({ system, messages })) {
+            controller.enqueue(encoder.encode(chunk));
+          }
+          controller.close();
+        } catch (err) {
+          console.error(`[${llm.name}] untangle chat failed:`, err);
+          controller.error(err);
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
+    });
+  }),
+};

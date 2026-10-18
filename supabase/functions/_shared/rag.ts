@@ -120,3 +120,51 @@ export async function searchCheckins(
   }
   return [...best.values()].slice(0, count);
 }
+
+export type RelatedConversation = {
+  id: string;
+  created_at: string;
+  title: string | null;
+  /** The matched topic: its title and summary. */
+  topic: string;
+  messages: ChatMessage[];
+};
+
+/**
+ * Small-to-big: find the topic chunks closest to `query`, then return the
+ * whole conversations they come from, so the model can use their details.
+ */
+export async function relatedConversations(
+  db: SupabaseClient,
+  embedder: Embedder,
+  query: string,
+  { excludeIds = [], max = 2 }: { excludeIds?: string[]; max?: number } = {},
+): Promise<RelatedConversation[]> {
+  const matches = (await searchCheckins(db, embedder, query, max + excludeIds.length + 2))
+    .filter((m) => !excludeIds.includes(m.checkin_id))
+    .slice(0, max);
+  if (!matches.length) return [];
+
+  const { data, error } = await db
+    .from('checkins')
+    .select('id, messages')
+    .in('id', matches.map((m) => m.checkin_id));
+  if (error) throw error;
+  const messagesById = new Map((data ?? []).map((c) => [c.id as string, c.messages as ChatMessage[]]));
+
+  return matches.map((m) => ({
+    id: m.checkin_id,
+    created_at: m.created_at,
+    title: m.title,
+    topic: m.topic_title && m.topic !== 'all' ? `${m.topic_title}: ${m.chunk_summary}` : m.chunk_summary,
+    messages: messagesById.get(m.checkin_id) ?? [],
+  }));
+}
+
+/** A whole conversation as plain text for a prompt. Companion lines are marked as such. */
+export function formatConversation(messages: ChatMessage[], maxChars = 8000): string {
+  return messages
+    .map((m) => `${m.role === 'user' ? 'User' : 'Destress AI'}: ${m.content}`)
+    .join('\n')
+    .slice(0, maxChars);
+}

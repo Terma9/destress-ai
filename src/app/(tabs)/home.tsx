@@ -72,6 +72,20 @@ export default function Home() {
         </View>
       </Card>
 
+      {/* Untangle: help for acute stress */}
+      <Card style={{ marginTop: spacing.lg }} onPress={() => router.push('/untangle/new')}>
+        <View style={styles.untangleRow}>
+          <View style={styles.untangleIcon}>
+            <Ionicons name="compass-outline" size={22} color={colors.white} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.untangleTitle}>Stressed right now?</Text>
+            <Text style={styles.untangleSub}>Untangle it with a small plan</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
+        </View>
+      </Card>
+
       {/* Today's insight */}
       <GradientCard colors={gradients.insight} style={{ marginTop: spacing.lg }}>
         <View style={styles.insightHead}>
@@ -140,6 +154,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.cardAlt,
   },
   moodActive: { backgroundColor: '#DBEAFE', borderWidth: 2, borderColor: colors.primary },
+  untangleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  untangleIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: radii.md,
+    backgroundColor: colors.purple,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  untangleTitle: { ...font.title, color: colors.text },
+  untangleSub: { ...font.small, color: colors.textMuted, marginTop: 2 },
   insightHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
   insightTitle: { ...font.title, color: colors.white },
   insightBody: { ...font.body, color: 'rgba(255,255,255,0.92)', lineHeight: 20 },

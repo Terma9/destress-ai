@@ -78,8 +78,13 @@ export function createOpenAIProvider(config: {
         input: messages,
         stream: true,
       });
+      // A response can contain more than one output item. We seldom saw the
+      // model send its reply twice that way, so only the first item's text is used.
+      let firstItem: string | null = null;
       for await (const event of stream) {
         if (event.type === 'response.output_text.delta') {
+          firstItem ??= event.item_id;
+          if (event.item_id !== firstItem) continue;
           yield event.delta;
         } else if (event.type === 'error') {
           throw new Error(`OpenAI stream error: ${event.message}`);

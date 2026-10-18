@@ -49,14 +49,29 @@ async function throwIfFailed(res: { ok: boolean; status: number; json(): Promise
   }
 }
 
-async function post(name: string, messages: ChatMessage[]) {
+/** POSTs JSON to an Edge Function as the signed-in user, with the user's local day and language. */
+async function post(name: string, body: Record<string, unknown>) {
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messages, day: dateKey(new Date()), language: deviceLanguage() }),
+    body: JSON.stringify({ day: dateKey(new Date()), language: deviceLanguage(), ...body }),
   });
   await throwIfFailed(res);
   return res;
+}
+
+/** Reads a streamed text response piece by piece; `onText` receives the text so far. */
+async function readStream(res: Awaited<ReturnType<typeof post>>, onText: (textSoFar: string) => void) {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let text = '';
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    text += decoder.decode(value, { stream: true });
+    onText(text);
+  }
+  return text;
 }
 
 /**
@@ -90,17 +105,22 @@ export async function streamCheckinReply(
   messages: ChatMessage[],
   onText: (textSoFar: string) => void,
 ): Promise<string> {
-  const res = await post('checkin-chat', messages);
-  const reader = res.body!.getReader();
-  const decoder = new TextDecoder();
-  let text = '';
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    text += decoder.decode(value, { stream: true });
-    onText(text);
-  }
-  return text;
+  return readStream(await post('checkin-chat', { messages }), onText);
+}
+
+/** Streams the AI's next Untangle question. The first message is the user's problem. */
+export async function streamUntangleReply(
+  messages: ChatMessage[],
+  intensity: number,
+  onText: (textSoFar: string) => void,
+): Promise<string> {
+  return readStream(await post('untangle-chat', { messages, intensity }), onText);
+}
+
+/** Turns the Untangle conversation into a saved plan; returns the session id. */
+export async function createUntanglePlan(messages: ChatMessage[], intensity: number): Promise<string> {
+  const res = await post('untangle-plan', { messages, intensity });
+  return ((await res.json()) as { id: string }).id;
 }
 
 /** Fills an empty account with three weeks of demo check-ins; returns how many were added. */
@@ -152,6 +172,6 @@ export async function generateDeepDives(): Promise<void> {
 
 /** Sends the finished conversation; the server extracts and saves it. */
 export async function completeCheckin(messages: ChatMessage[]): Promise<CheckinResult> {
-  const res = await post('checkin-complete', messages);
+  const res = await post('checkin-complete', { messages });
   return (await res.json()) as CheckinResult;
 }

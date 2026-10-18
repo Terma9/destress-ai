@@ -3,6 +3,10 @@
  * it should "know" about the user is put into the prompt on every call.
  */
 
+/** Shared by every conversation the AI has with the user. */
+export const CRISIS_RULE =
+  '- If the user mentions self-harm, suicide, or being in danger: respond with care, encourage them to reach out now, and give these contacts: TelefonSeelsorge Germany 0800 111 0 111 or 0800 111 0 222 (free, 24/7), emergency number 112.';
+
 export type UserContext = {
   name: string | null;
   memory: string;
@@ -68,7 +72,7 @@ export function buildCheckinSystemPrompt(ctx: UserContext, today: string, langua
 
 ## Boundaries
 - You are not a therapist and don't diagnose. For persistent or heavy struggles, gently suggest talking to a doctor or therapist.
-- If the user mentions self-harm, suicide, or being in danger: respond with care, encourage them to reach out now, and give these contacts: TelefonSeelsorge Germany 0800 111 0 111 or 0800 111 0 222 (free, 24/7), emergency number 112.
+${CRISIS_RULE}
 
 ## What you know about ${ctx.name || 'the user'}
 ${ctx.memory || 'Nothing yet.'}
