@@ -12,6 +12,7 @@ import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
 import { buildCheckinSystemPrompt, START_CHECKIN_MESSAGE, type UserContext } from '../_shared/prompts.ts';
 import { indexMissing, relatedConversations } from '../_shared/rag.ts';
+import { fetchOpenPlans } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseLanguage, parseMessages } from '../_shared/validation.ts';
 
 /** How many older conversations RAG may add to the prompt. Each is a whole check-in, so keep it small. */
@@ -60,7 +61,7 @@ export default {
     }
 
     // Load the user's context. RLS guarantees these queries only see their rows.
-    const [profile, checkins, metrics, reflections] = await Promise.all([
+    const [profile, checkins, metrics, reflections, openPlans] = await Promise.all([
       ctx.supabase.from('profiles').select('display_name, memory').maybeSingle(),
       ctx.supabase
         .from('checkins')
@@ -78,6 +79,10 @@ export default {
         .select('question, answer')
         .order('updated_at', { ascending: false })
         .limit(3),
+      fetchOpenPlans(ctx.supabase).catch((err) => {
+        console.error('Loading open plans failed:', err);
+        return [];
+      }),
     ]);
 
     const related = await findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id));
@@ -89,6 +94,7 @@ export default {
         recentCheckins: checkins.data ?? [],
         recentMetrics: metrics.data ?? [],
         reflections: reflections.data ?? [],
+        openPlans,
         related,
       },
       parseDay(body),

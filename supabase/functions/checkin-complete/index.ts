@@ -2,10 +2,12 @@
  * checkin-complete — finishes a check-in.
  *
  * Request:  POST { messages: [...], day?: 'YYYY-MM-DD' }
- * Response: { checkin, metrics } — the saved check-in and today's tracker values.
+ * Response: { checkin, metrics, successes } — the saved check-in, today's
+ *           tracker values, and success stories created from plans that worked.
  *
  * Steps: AI extracts structured data → save check-in → update today's
- * tracker values → save the updated memory → split into topic chunks for RAG search.
+ * tracker values → save the updated memory → split into topic chunks for
+ * RAG search → record how open Untangle plans turned out.
  * Runs as the calling user (RLS).
  */
 import { withSupabase } from 'npm:@supabase/server@1';
@@ -18,6 +20,7 @@ import {
   formatTranscript,
   sanitize,
 } from '../_shared/extraction.ts';
+import { fetchOpenPlans, type OpenPlan, recordPlanOutcomes } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseMessages } from '../_shared/validation.ts';
 
 export default {
@@ -37,7 +40,14 @@ export default {
     const day = parseDay(body);
     const db = ctx.supabase;
 
-    const { data: profile } = await db.from('profiles').select('display_name, memory').maybeSingle();
+    const [{ data: profile }, openPlans] = await Promise.all([
+      db.from('profiles').select('display_name, memory').maybeSingle(),
+      fetchOpenPlans(db).catch((err): OpenPlan[] => {
+        console.error('Loading open plans failed:', err);
+        return [];
+      }),
+    ]);
+    const planRefs = openPlans.map((p, i) => ({ ...p, ref: `P${i + 1}` }));
 
     // 1. Ask the AI for the structured record + updated memory.
     let extraction: CheckinExtraction;
@@ -48,6 +58,7 @@ export default {
           name: profile?.display_name ?? null,
           memory: profile?.memory ?? '',
           day,
+          openPlans: planRefs,
         }),
         messages: formatTranscript(messages),
         schemaName: 'checkin',
@@ -60,7 +71,7 @@ export default {
     }
 
     // 2. Save the check-in (user_id is filled in from the login by the database).
-    const { memory, topics, ...record } = extraction;
+    const { memory, topics, plan_outcomes, ...record } = extraction;
     const { data: checkin, error: checkinError } = await db
       .from('checkins')
       .insert({ ...record, messages, completed_at: new Date().toISOString() })
@@ -116,6 +127,15 @@ export default {
       console.error('Indexing check-in failed:', err);
     }
 
-    return Response.json({ checkin, metrics });
+    // 6. Untangle follow-up: save how open plans turned out; plans that
+    //    worked become private success stories the user can review.
+    let successes: { id: string; title: string }[] = [];
+    try {
+      successes = await recordPlanOutcomes(db, planRefs, plan_outcomes);
+    } catch (err) {
+      console.error('Recording plan outcomes failed:', err);
+    }
+
+    return Response.json({ checkin, metrics, successes });
   }),
 };

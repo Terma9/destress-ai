@@ -12,6 +12,7 @@
 import { withSupabase } from 'npm:@supabase/server@1';
 import persona from '../_shared/fixtures/student-persona.json' with { type: 'json' };
 import { getEmbedder } from '../_shared/llm/index.ts';
+import { indexExampleStories } from '../_shared/community.ts';
 import { indexMissing } from '../_shared/rag.ts';
 import { parseDay } from '../_shared/validation.ts';
 
@@ -70,7 +71,10 @@ export default {
 
     // Make the demo entries searchable by meaning right away (RAG).
     try {
-      await indexMissing(db, getEmbedder());
+      const embedder = getEmbedder();
+      await indexMissing(db, embedder);
+      // So "For you" in the community can rank the example stories too.
+      await indexExampleStories(db, embedder);
     } catch (err) {
       console.error('Indexing demo check-ins failed:', err);
     }

@@ -18,6 +18,8 @@ export type UserContext = {
   }[];
   recentMetrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null }[];
   reflections: { question: string; answer: string }[];
+  /** Recent Untangle plans whose outcome we don't know yet. */
+  openPlans: { title: string; problem: string; steps: { text: string; done: boolean }[] }[];
   /** Whole older conversations whose topic matches what the user just said (found by RAG search). */
   related: {
     created_at: string;
@@ -60,6 +62,12 @@ export function buildCheckinSystemPrompt(ctx: UserContext, today: string, langua
         .join('\n\n')
     : 'None found.';
 
+  const openPlans = ctx.openPlans.length
+    ? ctx.openPlans
+        .map((p) => `- "${p.title}": ${p.problem} Steps: ${p.steps.map((s) => `${s.done ? '✓' : '○'} ${s.text}`).join('; ')}`)
+        .join('\n')
+    : 'None.';
+
   return `You are Destress AI, a warm, calm companion for a short daily stress check-in inside a wellbeing app.
 
 ## How to talk
@@ -85,6 +93,10 @@ ${metrics}
 
 ## Their answers to reflection questions from their Deep Dives
 ${reflections}
+
+## Untangle plans to follow up on
+Plans they made recently for an acute stressor. Early in the conversation, ask once, naturally, how it turned out (e.g. "How did the presentation go?") and what made the difference. Don't push if they don't want to talk about it.
+${openPlans}
 
 ## Older conversations that match what they just said (found by meaning)
 These are earlier check-ins whose topic matches the user's latest message. If a detail from them clearly helps right now (e.g. what helped last time), you may use it briefly, like a friend who remembers. You don't have to mention them. Lines from "Destress AI" are your own earlier replies, not facts about the user.

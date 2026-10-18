@@ -37,8 +37,17 @@ export type CheckinExtraction = {
    * (precise), a summary and the labels of the user messages about it ("U2").
    */
   topics: { topic: (typeof THEMES)[number]; title: string; summary: string; messages: string[] }[];
+  /** How the open Untangle plans (labelled P1, P2, …) turned out, as far as the conversation says. */
+  plan_outcomes: {
+    plan: string;
+    outcome: (typeof PLAN_OUTCOMES)[number];
+    what_helped: string;
+    theme: (typeof THEMES)[number];
+  }[];
   memory: string;
 };
+
+export const PLAN_OUTCOMES = ['worked', 'partly', 'not_yet', 'not_discussed'] as const;
 
 const score = (description: string) => ({
   type: ['integer', 'null'],
@@ -62,6 +71,7 @@ export const CHECKIN_SCHEMA = {
     'follow_ups',
     'risk_level',
     'topics',
+    'plan_outcomes',
     'memory',
   ],
   properties: {
@@ -122,6 +132,29 @@ export const CHECKIN_SCHEMA = {
         },
       },
     },
+    plan_outcomes: {
+      type: 'array',
+      description: 'One entry per open Untangle plan listed in the instructions. Empty if there are none.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['plan', 'outcome', 'what_helped', 'theme'],
+        properties: {
+          plan: { type: 'string', description: 'The plan label, e.g. "P1".' },
+          outcome: {
+            type: 'string',
+            enum: PLAN_OUTCOMES,
+            description: 'worked / partly / not_yet as the user describes it; not_discussed if it never came up.',
+          },
+          what_helped: {
+            type: 'string',
+            description:
+              'What made the difference, in 1–2 sentences addressed to the user ("You…"), from their own words. Empty if not_yet or not_discussed.',
+          },
+          theme: { type: 'string', enum: THEMES, description: 'The life area of the plan.' },
+        },
+      },
+    },
     memory: {
       type: 'string',
       description: 'The updated memory text, see instructions.',
@@ -133,7 +166,11 @@ export function buildExtractionSystemPrompt(input: {
   name: string | null;
   memory: string;
   day: string;
+  openPlans: { ref: string; title: string; problem: string }[];
 }): string {
+  const plans = input.openPlans.length
+    ? input.openPlans.map((p) => `- [${p.ref}] "${p.title}": ${p.problem}`).join('\n')
+    : 'None.';
   return `You analyze a finished check-in conversation from Destress AI, a stress-management app, and fill in a structured record.
 
 Rules:
@@ -144,6 +181,9 @@ Rules:
 
 Updating the memory:
 The memory is a short profile of the user that the companion reads before every check-in. Rewrite it by merging the current memory with anything new and lasting from this conversation: recurring stressors, patterns (e.g. "sleeps badly before deadlines"), what helps, goals, important upcoming events. Drop details that are no longer relevant. Write in English, plain sentences, at most 120 words. Refer to the user by name or as "they"; don't assume their gender. Record only what the user said or showed, not suggestions the companion made. Leave out passing small talk.
+
+Open Untangle plans (the companion may have asked how they went):
+${plans}
 
 User's name: ${input.name || 'unknown'}
 Date of this check-in: ${input.day}

@@ -207,3 +207,73 @@ export function validatePlan(output: PlanOutput, related: UntangleContext['relat
   if (!steps.length) return null;
   return { lessons, steps, note: output.note.trim() };
 }
+
+/** How long after an Untangle plan the check-in still asks how it went. */
+const FOLLOW_UP_DAYS = 7;
+
+export type OpenPlan = {
+  id: string;
+  title: string;
+  problem: string;
+  intensity_before: number;
+  intensity_after: number | null;
+  steps: { text: string; done: boolean }[];
+};
+
+/** Recent Untangle plans whose outcome isn't known yet, newest first. */
+export async function fetchOpenPlans(db: SupabaseClient): Promise<OpenPlan[]> {
+  const since = new Date(Date.now() - FOLLOW_UP_DAYS * 86_400_000).toISOString();
+  const { data, error } = await db
+    .from('untangle_sessions')
+    .select('id, title, problem, intensity_before, intensity_after, plan')
+    .is('outcome', null)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false })
+    .limit(3);
+  if (error) throw error;
+  return (data ?? []).map(({ plan, ...s }) => ({ ...s, steps: (plan as Plan).steps }));
+}
+
+/**
+ * Saves how open plans turned out (from the check-in extraction). Plans
+ * that worked, fully or partly, become a private success story; returns those.
+ */
+export async function recordPlanOutcomes(
+  db: SupabaseClient,
+  plans: (OpenPlan & { ref: string })[],
+  outcomes: { plan: string; outcome: string; what_helped: string; theme: string }[],
+): Promise<{ id: string; title: string }[]> {
+  const byRef = new Map(plans.map((p) => [p.ref.toUpperCase(), p]));
+  const successes: { id: string; title: string }[] = [];
+
+  for (const o of outcomes) {
+    const plan = byRef.get(o.plan.trim().toUpperCase());
+    if (!plan || o.outcome === 'not_discussed') continue;
+
+    const { error } = await db
+      .from('untangle_sessions')
+      .update({ outcome: o.outcome, outcome_note: o.what_helped.trim() || null, outcome_at: new Date().toISOString() })
+      .eq('id', plan.id);
+    if (error) throw error;
+
+    if (o.outcome === 'worked' || o.outcome === 'partly') {
+      const doneSteps = plan.steps.filter((s) => s.done).map((s) => s.text);
+      const { data, error: storyError } = await db
+        .from('success_stories')
+        .insert({
+          session_id: plan.id,
+          theme: o.theme,
+          title: plan.title,
+          situation: plan.problem,
+          solution: o.what_helped.trim() || doneSteps.join(' ') || plan.steps[0]?.text || '',
+          intensity_before: plan.intensity_before,
+          intensity_after: plan.intensity_after,
+        })
+        .select('id, title')
+        .single();
+      if (storyError) throw storyError;
+      successes.push(data);
+    }
+  }
+  return successes;
+}
