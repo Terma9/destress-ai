@@ -1,6 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { loadDemoData } from '@/ai/checkinClient';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
 import { moodEmoji, useCheckins } from '@/data/checkins';
 import type { MoodKey } from '@/data/content';
@@ -8,13 +10,13 @@ import { average, useDailyMetrics } from '@/data/metrics';
 import { startOfLast7Days } from '@/lib/dates';
 import { colors, font, gradients, radii, spacing } from '@/theme';
 
+/** "Today, 18:30", "Yesterday" or "3 days ago", counted in calendar days. */
 function timeAgo(ts: number) {
-  const diff = Date.now() - ts;
-  const h = Math.floor(diff / 3_600_000);
-  if (h < 1) return 'Just now';
-  if (h < 24) return `Today, ${new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-  const d = Math.floor(h / 24);
-  return `${d} day${d > 1 ? 's' : ''} ago`;
+  const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0);
+  const days = Math.round((startOfDay(Date.now()) - startOfDay(ts)) / 86_400_000);
+  if (days <= 0) return `Today, ${new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
 }
 
 /** How positive a mood is — drives the little bar under each entry. */
@@ -28,8 +30,21 @@ const moodPositivity: Record<MoodKey, number> = {
 
 export default function Diary() {
   const router = useRouter();
-  const { checkins, error } = useCheckins();
-  const { rows: metricRows } = useDailyMetrics();
+  const { checkins, error, reload } = useCheckins();
+  const { rows: metricRows, reload: reloadMetrics } = useDailyMetrics();
+  const [demo, setDemo] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  async function addDemoData() {
+    setDemo('loading');
+    try {
+      await loadDemoData();
+      reload();
+      reloadMetrics();
+      setDemo('idle');
+    } catch {
+      setDemo('error');
+    }
+  }
 
   const entries = checkins ?? [];
   const thisWeek = entries.filter((e) => Date.parse(e.created_at) >= startOfLast7Days()).length;
@@ -105,6 +120,17 @@ export default function Diary() {
           icon={<Ionicons name="book-outline" size={32} color={colors.textFaint} />}
           title="No entries yet"
           caption="Tap the + button to record your first check-in — a minute is enough."
+          action={
+            <Pressable style={styles.demoBtn} onPress={addDemoData} disabled={demo === 'loading'}>
+              {demo === 'loading' ? (
+                <ActivityIndicator color={colors.primary} />
+              ) : (
+                <Text style={styles.demoText}>
+                  {demo === 'error' ? "Couldn't load demo data — try again" : 'Or try it with 3 weeks of demo data'}
+                </Text>
+              )}
+            </Pressable>
+          }
         />
       ) : (
         entries.map((e) => (
@@ -165,6 +191,14 @@ const styles = StyleSheet.create({
   statHeadText: { ...font.small, color: colors.textMuted },
   statValue: { fontSize: 22, fontWeight: '700', color: colors.text },
   statLabel: { ...font.small, color: colors.textFaint },
+  demoBtn: {
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary + '1A',
+  },
+  demoText: { color: colors.primary, fontWeight: '600', fontSize: 13 },
   entryRow: { flexDirection: 'row', gap: spacing.md, alignItems: 'center' },
   entryEmoji: {
     width: 44,

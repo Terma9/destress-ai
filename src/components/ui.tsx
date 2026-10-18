@@ -216,16 +216,19 @@ export function EmptyState({
   icon,
   title,
   caption,
+  action,
 }: {
   icon: ReactNode;
   title: string;
   caption?: string;
+  action?: ReactNode;
 }) {
   return (
     <View style={[styles.card, styles.emptyState]}>
       {icon}
       <Text style={styles.emptyTitle}>{title}</Text>
       {caption ? <Text style={styles.emptyCaption}>{caption}</Text> : null}
+      {action}
     </View>
   );
 }

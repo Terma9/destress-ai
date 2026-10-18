@@ -103,6 +103,18 @@ export async function streamCheckinReply(
   return text;
 }
 
+/** Fills an empty account with three weeks of demo check-ins; returns how many were added. */
+export async function loadDemoData(): Promise<number> {
+  const res = await fetch(`${FUNCTIONS_URL}/seed-demo`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ day: dateKey(new Date()) }),
+  });
+  await throwIfFailed(res);
+  const { inserted } = (await res.json()) as { inserted: number };
+  return inserted;
+}
+
 /** Sends the finished conversation; the server extracts and saves it. */
 export async function completeCheckin(messages: ChatMessage[]): Promise<CheckinResult> {
   const res = await post('checkin-complete', messages);

@@ -1,0 +1,359 @@
+{
+  "id": "student",
+  "description": "A university student over three weeks with two exams. Planted patterns: the days before an exam bring short sleep and high stress; days with a walk are calmer. Used as demo data and as the ground truth for evals.",
+  "memory": "A university student juggling lectures, a group project and a part-time café job. Exams are their biggest stressor: before an exam they study late and sleep badly. Walking outside, especially along the river, reliably calms them down. Calls with their family help when they feel lonely. Money for rent is a recurring background worry.",
+  "patterns": [
+    {
+      "id": "pre_exam_stress",
+      "description": "In the days before an exam, sleep is short (3–5/10) and stress is high (8–9/10).",
+      "labels": ["pre_exam"]
+    },
+    {
+      "id": "walk_helps",
+      "description": "On days with a walk outside, stress is clearly lower (3–4/10) and the walk is named as what helped.",
+      "labels": ["walk"]
+    }
+  ],
+  "checkins": [
+    {
+      "daysAgo": 21,
+      "labels": ["neutral"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! How are you feeling at the start of the new semester week?" },
+        { "role": "user", "content": "Okay I think. A bit overwhelmed by all the syllabi, there are two exams coming up in the next three weeks. Statistics and Macroeconomics." },
+        { "role": "assistant", "content": "That's a lot to take in at once. How did you sleep last night?" },
+        { "role": "user", "content": "Pretty well actually, around seven and a half hours. I made a study plan this afternoon, that helped me feel more in control." },
+        { "role": "assistant", "content": "A plan is a great anchor. Shall we wrap up here for today?" }
+      ],
+      "title": "Planning the semester",
+      "summary": "You felt a little overwhelmed by the new semester and two upcoming exams. Making a study plan gave you a sense of control.",
+      "mood": "ok",
+      "stress": 5,
+      "emotion": 6,
+      "sleep": 7,
+      "themes": ["study"],
+      "helped": ["making a study plan"],
+      "follow_ups": ["How is the study plan working out?"]
+    },
+    {
+      "daysAgo": 20,
+      "labels": ["neutral"],
+      "messages": [
+        { "role": "assistant", "content": "Hi again! How did your day go?" },
+        { "role": "user", "content": "Long shift at the café after lectures. I'm tired but it was fine. I keep thinking about whether I'll have enough for rent next month." },
+        { "role": "assistant", "content": "Money worries can sit in the background all day. How are you feeling right now?" },
+        { "role": "user", "content": "A bit drained. I slept okay, maybe seven hours." },
+        { "role": "assistant", "content": "Thanks for sharing. Rest well tonight." }
+      ],
+      "title": "Café shift and rent worries",
+      "summary": "You worked a long café shift after lectures and felt drained. Rent for next month is on your mind.",
+      "mood": "ok",
+      "stress": 6,
+      "emotion": 5,
+      "sleep": 7,
+      "themes": ["work", "money"],
+      "helped": [],
+      "follow_ups": ["Has the rent worry eased?"]
+    },
+    {
+      "daysAgo": 19,
+      "labels": ["walk"],
+      "messages": [
+        { "role": "assistant", "content": "Hey! What was today like?" },
+        { "role": "user", "content": "Really nice actually. I went for a long walk along the river after the morning lecture, the weather was great." },
+        { "role": "assistant", "content": "That sounds lovely. How did you feel afterwards?" },
+        { "role": "user", "content": "Much calmer. I could focus on reading for two hours without checking my phone. Slept well too." },
+        { "role": "assistant", "content": "It sounds like the walk really cleared your head." }
+      ],
+      "title": "Walk by the river",
+      "summary": "A long walk along the river left you calm and focused. You read for two hours without distraction.",
+      "mood": "good",
+      "stress": 3,
+      "emotion": 8,
+      "sleep": 7,
+      "themes": ["study", "health"],
+      "helped": ["walk along the river"],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 17,
+      "labels": ["pre_exam"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! How are you doing today?" },
+        { "role": "user", "content": "Stressed. The Statistics exam is in two days and I still don't get hypothesis testing. I studied until 2am." },
+        { "role": "assistant", "content": "That's a lot of pressure. How much sleep did you get?" },
+        { "role": "user", "content": "Maybe four hours. I woke up with my heart racing and immediately thought about the exam." },
+        { "role": "assistant", "content": "That sounds exhausting. Even a short break could help your brain store what you learned." }
+      ],
+      "title": "Statistics exam panic",
+      "summary": "With the Statistics exam two days away, you studied until 2am and slept only about four hours. You woke up anxious about the exam.",
+      "mood": "stressed",
+      "stress": 8,
+      "emotion": 3,
+      "sleep": 4,
+      "themes": ["study", "sleep"],
+      "helped": [],
+      "follow_ups": ["How did the Statistics exam go?"]
+    },
+    {
+      "daysAgo": 16,
+      "labels": ["pre_exam"],
+      "messages": [
+        { "role": "assistant", "content": "Hallo! Wie geht es dir heute?" },
+        { "role": "user", "content": "Ehrlich gesagt schlecht. Morgen ist die Statistik-Prüfung und ich habe kaum geschlafen, vielleicht drei Stunden." },
+        { "role": "assistant", "content": "Das klingt sehr anstrengend. Was geht dir gerade am meisten durch den Kopf?" },
+        { "role": "user", "content": "Dass ich durchfalle. Ich lerne den ganzen Tag, aber ich habe das Gefühl, nichts bleibt hängen. Ich habe auch kaum gegessen." },
+        { "role": "assistant", "content": "Versuch heute Abend, früher ins Bett zu gehen. Ausgeruht wirst du mehr abrufen können." }
+      ],
+      "title": "Prüfungsangst vor Statistik",
+      "summary": "Am Tag vor der Statistik-Prüfung hast du nur etwa drei Stunden geschlafen und hast Angst durchzufallen. Du hast den ganzen Tag gelernt und kaum gegessen.",
+      "mood": "stressed",
+      "stress": 9,
+      "emotion": 2,
+      "sleep": 3,
+      "themes": ["study", "sleep", "health"],
+      "helped": [],
+      "follow_ups": ["Wie lief die Statistik-Prüfung?"]
+    },
+    {
+      "daysAgo": 15,
+      "labels": ["exam_day"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! Today was the Statistics exam, right? How did it go?" },
+        { "role": "user", "content": "I survived. Some questions were really hard, but I think I passed. I'm completely exhausted." },
+        { "role": "assistant", "content": "Well done for getting through it. How did you sleep last night?" },
+        { "role": "user", "content": "Badly again, about four hours. Now I just want to sleep." },
+        { "role": "assistant", "content": "You've earned a proper rest tonight." }
+      ],
+      "title": "Statistics exam done",
+      "summary": "You got through the Statistics exam and think you passed, but you're exhausted after another short night.",
+      "mood": "low",
+      "stress": 7,
+      "emotion": 4,
+      "sleep": 4,
+      "themes": ["study", "sleep"],
+      "helped": [],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 14,
+      "labels": ["post_exam"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! How are you feeling the day after the exam?" },
+        { "role": "user", "content": "So much better. I slept nine hours and met friends for brunch." },
+        { "role": "assistant", "content": "That sounds like a well-deserved recovery day. What did you enjoy most?" },
+        { "role": "user", "content": "Just laughing with friends and not thinking about university for a few hours." },
+        { "role": "assistant", "content": "Time with friends can really recharge you." }
+      ],
+      "title": "Recovery brunch with friends",
+      "summary": "After the exam you slept nine hours and enjoyed a brunch with friends. Not thinking about university for a while felt great.",
+      "mood": "great",
+      "stress": 3,
+      "emotion": 8,
+      "sleep": 9,
+      "themes": ["social"],
+      "helped": ["brunch with friends", "sleeping in"],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 12,
+      "labels": ["walk"],
+      "messages": [
+        { "role": "assistant", "content": "Hey! How was your day?" },
+        { "role": "user", "content": "Busy with the group project, but I took a walk in the park at lunch and that helped a lot." },
+        { "role": "assistant", "content": "Nice that you made space for that. How did you feel afterwards?" },
+        { "role": "user", "content": "Lighter. The afternoon meeting was less annoying than usual. Sleep was fine, seven hours." },
+        { "role": "assistant", "content": "Sounds like a good balance today." }
+      ],
+      "title": "Lunch walk in the park",
+      "summary": "On a busy group-project day, a lunchtime walk in the park made you feel lighter. The afternoon meeting went better than usual.",
+      "mood": "good",
+      "stress": 3,
+      "emotion": 7,
+      "sleep": 7,
+      "themes": ["study", "health"],
+      "helped": ["walk in the park"],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 11,
+      "labels": ["neutral"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! What's on your mind today?" },
+        { "role": "user", "content": "Money again. My electricity bill was higher than expected and I had to pick up an extra café shift." },
+        { "role": "assistant", "content": "That's frustrating. How are you holding up?" },
+        { "role": "user", "content": "Okay-ish. I'm annoyed that the extra shift takes time away from studying. Slept six hours." },
+        { "role": "assistant", "content": "It makes sense to feel annoyed about that." }
+      ],
+      "title": "Unexpected bill, extra shift",
+      "summary": "A higher electricity bill meant an extra café shift, which takes time away from studying. You felt annoyed and a bit stretched.",
+      "mood": "ok",
+      "stress": 6,
+      "emotion": 5,
+      "sleep": 6,
+      "themes": ["money", "work"],
+      "helped": [],
+      "follow_ups": ["Is the extra shift manageable alongside studying?"]
+    },
+    {
+      "daysAgo": 10,
+      "labels": ["neutral"],
+      "messages": [
+        { "role": "assistant", "content": "Hey! How are you today?" },
+        { "role": "user", "content": "A bit lonely in the morning, but I called my mum in the evening and that was really nice." },
+        { "role": "assistant", "content": "I'm glad you reached out. What did you talk about?" },
+        { "role": "user", "content": "Nothing special, just family stuff. It reminded me that people are there for me. Slept seven hours." },
+        { "role": "assistant", "content": "That feeling of support matters a lot." }
+      ],
+      "title": "Call with mum",
+      "summary": "You felt lonely in the morning, and a call with your mum in the evening reminded you that people are there for you.",
+      "mood": "good",
+      "stress": 5,
+      "emotion": 6,
+      "sleep": 7,
+      "themes": ["family"],
+      "helped": ["calling mum"],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 9,
+      "labels": ["walk"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! How did today go?" },
+        { "role": "user", "content": "Full day of lectures and the café, but I walked home along the river instead of taking the tram." },
+        { "role": "assistant", "content": "How was that?" },
+        { "role": "user", "content": "Really good. I arrived home calm instead of wound up. Slept about six hours." },
+        { "role": "assistant", "content": "A small change with a big effect." }
+      ],
+      "title": "Walking home along the river",
+      "summary": "On a full day, you walked home along the river instead of taking the tram and arrived calm instead of wound up.",
+      "mood": "good",
+      "stress": 4,
+      "emotion": 7,
+      "sleep": 6,
+      "themes": ["study", "work", "health"],
+      "helped": ["walking home along the river"],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 7,
+      "labels": ["neutral"],
+      "messages": [
+        { "role": "assistant", "content": "Hey! What's been going on?" },
+        { "role": "user", "content": "The group project is annoying. One person isn't doing their part and I'm covering for them." },
+        { "role": "assistant", "content": "That's frustrating. How is it affecting you?" },
+        { "role": "user", "content": "I'm irritated and it eats into my time for the Macroeconomics exam next week. Slept six hours." },
+        { "role": "assistant", "content": "It might be worth raising it with the group." }
+      ],
+      "title": "Group project frustration",
+      "summary": "You're covering for a group member who isn't doing their part, which eats into your preparation time for Macroeconomics.",
+      "mood": "low",
+      "stress": 6,
+      "emotion": 4,
+      "sleep": 6,
+      "themes": ["study", "relationships"],
+      "helped": [],
+      "follow_ups": ["Did you talk to the group about the workload?"]
+    },
+    {
+      "daysAgo": 6,
+      "labels": ["pre_exam"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! How are you feeling today?" },
+        { "role": "user", "content": "Tense. The Macroeconomics exam is in two days and there's so much material left. I stayed up late again." },
+        { "role": "assistant", "content": "How long did you sleep?" },
+        { "role": "user", "content": "About five hours. I know I should sleep more but I feel guilty when I'm not studying." },
+        { "role": "assistant", "content": "That guilt is very common before exams. Rest is part of studying too." }
+      ],
+      "title": "Macroeconomics crunch",
+      "summary": "Two days before the Macroeconomics exam you stayed up late and slept about five hours. You feel guilty when you're not studying.",
+      "mood": "stressed",
+      "stress": 8,
+      "emotion": 3,
+      "sleep": 5,
+      "themes": ["study", "sleep"],
+      "helped": [],
+      "follow_ups": ["How did the Macroeconomics exam go?"]
+    },
+    {
+      "daysAgo": 5,
+      "labels": ["pre_exam"],
+      "messages": [
+        { "role": "assistant", "content": "Hallo! Wie war dein Tag?" },
+        { "role": "user", "content": "Furchtbar. Morgen ist die Makro-Prüfung, ich habe nur vier Stunden geschlafen und mein Kopf ist voll." },
+        { "role": "assistant", "content": "Das klingt nach enormem Druck. Wie fühlst du dich körperlich?" },
+        { "role": "user", "content": "Verspannt, Nacken und Schultern tun weh. Ich kann mich kaum konzentrieren, weil ich so müde bin." },
+        { "role": "assistant", "content": "Vielleicht hilft heute ein früher Abend mehr als noch eine Stunde Lernen." }
+      ],
+      "title": "Vor der Makro-Prüfung",
+      "summary": "Am Tag vor der Makroökonomie-Prüfung hast du nur vier Stunden geschlafen. Du bist verspannt und kannst dich vor Müdigkeit kaum konzentrieren.",
+      "mood": "stressed",
+      "stress": 9,
+      "emotion": 2,
+      "sleep": 4,
+      "themes": ["study", "sleep", "health"],
+      "helped": [],
+      "follow_ups": ["Wie lief die Makro-Prüfung?"]
+    },
+    {
+      "daysAgo": 4,
+      "labels": ["exam_day"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! Today was the Macroeconomics exam. How did it go?" },
+        { "role": "user", "content": "Better than Statistics I think. I'm relieved it's over, but so tired. Only four hours of sleep." },
+        { "role": "assistant", "content": "Relief and tiredness at the same time. What will you do tonight?" },
+        { "role": "user", "content": "Nothing. Pizza and bed." },
+        { "role": "assistant", "content": "Sounds like exactly the right plan." }
+      ],
+      "title": "Macroeconomics exam done",
+      "summary": "The Macroeconomics exam went better than Statistics. You're relieved but very tired after only four hours of sleep.",
+      "mood": "ok",
+      "stress": 7,
+      "emotion": 5,
+      "sleep": 4,
+      "themes": ["study", "sleep"],
+      "helped": [],
+      "follow_ups": []
+    },
+    {
+      "daysAgo": 2,
+      "labels": ["walk"],
+      "messages": [
+        { "role": "assistant", "content": "Hey! How are you doing?" },
+        { "role": "user", "content": "Good! Slept eight hours and went for a long walk by the river this morning." },
+        { "role": "assistant", "content": "That sounds wonderful. How do you feel?" },
+        { "role": "user", "content": "Relaxed. I even started thinking about how to prepare differently for the next exams so it's less stressful." },
+        { "role": "assistant", "content": "That's a great reflection to carry forward." }
+      ],
+      "title": "Morning walk and new plans",
+      "summary": "After eight hours of sleep and a long morning walk by the river, you felt relaxed and started planning a calmer way to prepare for future exams.",
+      "mood": "great",
+      "stress": 3,
+      "emotion": 8,
+      "sleep": 8,
+      "themes": ["health", "study"],
+      "helped": ["morning walk by the river", "good sleep"],
+      "follow_ups": ["What would you change in your exam preparation?"]
+    },
+    {
+      "daysAgo": 1,
+      "labels": ["neutral"],
+      "messages": [
+        { "role": "assistant", "content": "Hi! How was your day?" },
+        { "role": "user", "content": "Normal. Lectures, then a café shift. The group project is moving again since we talked about the workload." },
+        { "role": "assistant", "content": "Good to hear it's moving. How are you feeling overall?" },
+        { "role": "user", "content": "Fine, a bit tired. Seven hours of sleep." },
+        { "role": "assistant", "content": "Sounds like a steady day." }
+      ],
+      "title": "A steady day",
+      "summary": "A normal day of lectures and a café shift. The group project is moving again after you talked about the workload.",
+      "mood": "ok",
+      "stress": 5,
+      "emotion": 6,
+      "sleep": 7,
+      "themes": ["study", "work"],
+      "helped": ["talking to the group about workload"],
+      "follow_ups": []
+    }
+  ]
+}
