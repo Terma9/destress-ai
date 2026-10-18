@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, GradientCard, Screen } from '@/components/ui';
+import { useCheckins } from '@/data/checkins';
 import { moods } from '@/data/content';
 import { computeStreak, getGreeting } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
@@ -17,8 +18,8 @@ const tiles = [
 
 export default function Home() {
   const router = useRouter();
-  const { setTodayMood, entries, name, activityDates, reminderEnabled, setReminderEnabled } =
-    useAppStore();
+  const { setTodayMood, name, activityDates, reminderEnabled, setReminderEnabled } = useAppStore();
+  const { checkins } = useCheckins();
   const todayMood = useAppStore(selectTodayMood);
   const streak = computeStreak(activityDates);
   const greeting = getGreeting();
@@ -108,7 +109,7 @@ export default function Home() {
         </View>
         <View style={{ alignItems: 'flex-end' }}>
           <Text style={styles.streakLabel}>Total Entries</Text>
-          <Text style={styles.streakValue}>{entries.length}</Text>
+          <Text style={styles.streakValue}>{checkins?.length ?? '–'}</Text>
         </View>
       </View>
     </Screen>

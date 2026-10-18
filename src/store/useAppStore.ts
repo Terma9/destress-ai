@@ -1,22 +1,14 @@
 /**
- * Global app state (zustand) with AsyncStorage persistence.
- * Holds the user's name, daily mood check-in, diary entries, activity history
- * (for the streak), exercise sessions and article read-state — shared across
- * Home, Diary, Tracker, Practice and Knowledge so the app feels alive.
+ * Local app state (zustand) with AsyncStorage persistence: the user's name,
+ * daily mood check-in, activity history (for the streak), exercise sessions,
+ * article read-state and preferences.
+ * Diary entries are not here — they live in Supabase (see src/data/checkins.ts).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import type { MoodKey } from '@/data/content';
 import { todayKey } from '@/lib/dates';
-
-export type DiaryEntry = {
-  id: string;
-  title: string;
-  summary: string;
-  moodEmoji: string;
-  createdAt: number;
-};
 
 export type ExerciseSession = {
   id: string;
@@ -34,7 +26,6 @@ type AppState = {
   todayMood: MoodKey | null;
   todayMoodDate: string | null;
   activityDates: string[];
-  entries: DiaryEntry[];
   sessions: ExerciseSession[];
   readArticles: string[];
   metrics: Metrics;
@@ -42,30 +33,13 @@ type AppState = {
   setOnboarded: (v: boolean) => void;
   setName: (name: string) => void;
   setTodayMood: (m: MoodKey) => void;
-  addEntry: (e: Omit<DiaryEntry, 'id' | 'createdAt'>) => void;
-  removeEntry: (id: string) => void;
+  /** Counts today toward the streak (e.g. after a finished check-in). */
+  recordActivity: () => void;
   addSession: (exerciseId: string, minutes: number) => void;
   markArticleRead: (id: string) => void;
   setMetric: (key: MetricKey, value: number) => void;
   setReminderEnabled: (v: boolean) => void;
 };
-
-const seedEntries: DiaryEntry[] = [
-  {
-    id: 'seed-1',
-    title: 'Morning Walk',
-    summary: 'Going for a walk helped clear mind. Felt much calmer and more focused.',
-    moodEmoji: '😊',
-    createdAt: Date.now() - 1000 * 60 * 60 * 5,
-  },
-  {
-    id: 'seed-2',
-    title: 'Busy Workday',
-    summary: 'Back-to-back meetings left little room to breathe, but I paused for a short reset.',
-    moodEmoji: '😐',
-    createdAt: Date.now() - 1000 * 60 * 60 * 28,
-  },
-];
 
 /** Append today's date key to the activity history (deduped). */
 function withToday(dates: string[]): string[] {
@@ -81,7 +55,6 @@ export const useAppStore = create<AppState>()(
       todayMood: null,
       todayMoodDate: null,
       activityDates: [],
-      entries: seedEntries,
       sessions: [],
       readArticles: [],
       metrics: { stress: 3, emotion: 8, sleep: 7 },
@@ -94,16 +67,7 @@ export const useAppStore = create<AppState>()(
           todayMoodDate: todayKey(),
           activityDates: withToday(s.activityDates),
         })),
-      addEntry: (e) =>
-        set((s) => ({
-          entries: [
-            { ...e, id: `e-${Date.now()}`, createdAt: Date.now() },
-            ...s.entries,
-          ],
-          activityDates: withToday(s.activityDates),
-        })),
-      removeEntry: (id) =>
-        set((s) => ({ entries: s.entries.filter((e) => e.id !== id) })),
+      recordActivity: () => set((s) => ({ activityDates: withToday(s.activityDates) })),
       addSession: (exerciseId, minutes) =>
         set((s) => ({
           sessions: [
@@ -125,6 +89,12 @@ export const useAppStore = create<AppState>()(
     {
       name: 'destress-ai-store',
       storage: createJSONStorage(() => AsyncStorage),
+      // Drop the old local diary entries saved by earlier versions; they now live in Supabase.
+      version: 1,
+      migrate: (persisted) => {
+        const { entries: _entries, ...rest } = persisted as Record<string, unknown>;
+        return rest as unknown as AppState;
+      },
     },
   ),
 );

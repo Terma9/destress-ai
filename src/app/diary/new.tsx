@@ -25,6 +25,7 @@ import {
   streamCheckinReply,
 } from '@/ai/checkinClient';
 import { moods } from '@/data/content';
+import { useAppStore } from '@/store/useAppStore';
 import { colors, font, radii, spacing } from '@/theme';
 
 type Status = 'replying' | 'idle' | 'saving' | 'done';
@@ -33,6 +34,7 @@ export default function CheckinChat() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
+  const recordActivity = useAppStore((s) => s.recordActivity);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
@@ -75,6 +77,7 @@ export default function CheckinChat() {
     setError(null);
     try {
       setResult(await completeCheckin(messages));
+      recordActivity();
       setStatus('done');
     } catch (err) {
       setError((err as Error).message);

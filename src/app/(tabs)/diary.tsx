@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
-import { metrics as metricsMeta } from '@/data/content';
+import { moodEmoji, useCheckins } from '@/data/checkins';
+import { type MoodKey, metrics as metricsMeta } from '@/data/content';
 import { startOfLast7Days } from '@/lib/dates';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, font, gradients, radii, spacing } from '@/theme';
@@ -16,21 +17,22 @@ function timeAgo(ts: number) {
   return `${d} day${d > 1 ? 's' : ''} ago`;
 }
 
-/** How positive an entry's mood emoji reads — drives the little bar under each entry. */
-const moodPositivity: Record<string, number> = {
-  '😊': 0.95,
-  '🙂': 0.75,
-  '😐': 0.55,
-  '😔': 0.35,
-  '😰': 0.2,
+/** How positive a mood is — drives the little bar under each entry. */
+const moodPositivity: Record<MoodKey, number> = {
+  great: 0.95,
+  good: 0.75,
+  ok: 0.55,
+  low: 0.35,
+  stressed: 0.2,
 };
 
 export default function Diary() {
   const router = useRouter();
-  const entries = useAppStore((s) => s.entries);
+  const { checkins, error } = useCheckins();
   const stress = useAppStore((s) => s.metrics.stress);
 
-  const thisWeek = entries.filter((e) => e.createdAt >= startOfLast7Days()).length;
+  const entries = checkins ?? [];
+  const thisWeek = entries.filter((e) => Date.parse(e.created_at) >= startOfLast7Days()).length;
   const stressAvg = metricsMeta.find((m) => m.id === 'stress')?.weeklyAvg ?? 5;
   const delta = Math.round(((stress - stressAvg) / stressAvg) * 100);
   const improving = delta <= 0;
@@ -96,7 +98,15 @@ export default function Diary() {
       </View>
 
       <SectionHeader title="Recent Entries" />
-      {entries.length === 0 ? (
+      {error ? (
+        <EmptyState
+          icon={<Ionicons name="cloud-offline-outline" size={32} color={colors.textFaint} />}
+          title="Couldn't load your entries"
+          caption="Check your connection — the list reloads when you come back to this tab."
+        />
+      ) : checkins === null ? (
+        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+      ) : entries.length === 0 ? (
         <EmptyState
           icon={<Ionicons name="book-outline" size={32} color={colors.textFaint} />}
           title="No entries yet"
@@ -110,14 +120,16 @@ export default function Diary() {
             onPress={() => router.push({ pathname: '/entry/[id]', params: { id: e.id } })}>
             <View style={styles.entryRow}>
               <View style={styles.entryEmoji}>
-                <Text style={{ fontSize: 22 }}>{e.moodEmoji}</Text>
+                <Text style={{ fontSize: 22 }}>{moodEmoji(e.mood)}</Text>
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.entryTitle}>{e.title}</Text>
-                <Text style={styles.entryTime}>{timeAgo(e.createdAt)}</Text>
-                <Text style={styles.entrySummary}>{e.summary}</Text>
+                <Text style={styles.entryTitle}>{e.title ?? 'Check-in'}</Text>
+                <Text style={styles.entryTime}>{timeAgo(Date.parse(e.created_at))}</Text>
+                <Text style={styles.entrySummary} numberOfLines={3}>
+                  {e.summary}
+                </Text>
                 <View style={{ marginTop: spacing.sm }}>
-                  <ProgressBar progress={moodPositivity[e.moodEmoji] ?? 0.6} color={colors.green} />
+                  <ProgressBar progress={e.mood ? moodPositivity[e.mood] : 0.6} color={colors.green} />
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
