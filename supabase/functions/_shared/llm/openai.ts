@@ -1,8 +1,46 @@
 /**
- * OpenAI adapter: implements LLMProvider with OpenAI's Responses API.
+ * OpenAI adapter: implements LLMProvider with OpenAI's Responses API, and
+ * Transcriber with OpenAI's speech-to-text endpoint.
  */
-import OpenAI from 'npm:openai@7';
-import type { ChatMessage, JsonSchema, LLMProvider } from './types.ts';
+import OpenAI, { toFile } from 'npm:openai@7';
+import type { ChatMessage, JsonSchema, LLMProvider, Transcriber } from './types.ts';
+
+const EXTENSIONS: Record<string, string> = {
+  'audio/mp4': 'm4a',
+  'audio/m4a': 'm4a',
+  'audio/x-m4a': 'm4a',
+  'audio/aac': 'm4a',
+  'audio/webm': 'webm',
+  'audio/wav': 'wav',
+  'audio/x-wav': 'wav',
+  'audio/mpeg': 'mp3',
+};
+
+export function createOpenAITranscriber(config: { apiKey: string; model: string }): Transcriber {
+  const client = new OpenAI({ apiKey: config.apiKey });
+
+  return {
+    name: 'openai',
+
+    async transcribe({ audio, mimeType, language }) {
+      const type = mimeType.split(';')[0];
+      // The API detects the format from the file name, so give it the right extension.
+      const file = await toFile(audio, `recording.${EXTENSIONS[type] ?? 'webm'}`, { type });
+      // gpt-transcribe takes a list of expected languages; older models take one `language`.
+      const languageHint = language
+        ? config.model === 'gpt-transcribe'
+          ? { languages: [language] }
+          : { language }
+        : {};
+      const result = await client.audio.transcriptions.create({
+        file,
+        model: config.model,
+        ...languageHint,
+      } as Parameters<typeof client.audio.transcriptions.create>[0]);
+      return result.text.trim();
+    },
+  };
+}
 
 export function createOpenAIProvider(config: {
   apiKey: string;

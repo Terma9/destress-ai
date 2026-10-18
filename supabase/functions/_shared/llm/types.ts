@@ -27,3 +27,14 @@ export interface LLMProvider {
     schema: JsonSchema;
   }): Promise<T>;
 }
+
+/**
+ * Speech-to-text. Separate from LLMProvider because not every chat provider
+ * offers it, so the two can be configured independently.
+ */
+export interface Transcriber {
+  readonly name: string;
+
+  /** Turns recorded speech into text. `language` is an ISO code hint like "de". */
+  transcribe(input: { audio: Uint8Array; mimeType: string; language?: string }): Promise<string>;
+}
