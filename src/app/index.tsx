@@ -1,98 +1,120 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Redirect, useRouter } from 'expo-router';
+import { useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { PrimaryButton } from '@/components/ui';
+import { useAppStore } from '@/store/useAppStore';
+import { colors, font, gradients, radii, spacing } from '@/theme';
 
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+const features = [
+  { icon: 'sparkles', label: 'AI Insights', tint: colors.primary, bg: '#DBEAFE' },
+  { icon: 'heart', label: 'Mindfulness', tint: colors.green, bg: '#DCFCE7' },
+  { icon: 'pulse', label: 'Wellbeing', tint: colors.purple, bg: '#EDE9FE' },
+] as const;
 
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
+export default function Onboarding() {
+  const router = useRouter();
+  const { onboarded, setOnboarded, setName } = useAppStore();
+  const insets = useSafeAreaInsets();
+  const [nameInput, setNameInput] = useState('');
+
+  if (onboarded) return <Redirect href="/(tabs)/home" />;
+
+  const start = () => {
+    setName(nameInput);
+    setOnboarded(true);
+    router.replace('/(tabs)/home');
+  };
+
   return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+    <LinearGradient colors={gradients.appBackground} style={{ flex: 1 }}>
+      <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + spacing.xl }]}>
+        <View style={styles.center}>
+          <LinearGradient colors={['#60A5FA', '#2563EB']} style={styles.logo}>
+            <Ionicons name="leaf" size={54} color={colors.white} />
+          </LinearGradient>
 
-export default function HomeScreen() {
-  return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+          <Text style={styles.brand}>
+            Destress <Text style={{ color: colors.purple }}>AI</Text>
+          </Text>
+          <Text style={styles.tagline}>Your AI-Powered Companion for Stress Relief and Wellbeing</Text>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+          <View style={styles.featureRow}>
+            {features.map((f) => (
+              <View key={f.label} style={styles.feature}>
+                <View style={[styles.featureIcon, { backgroundColor: f.bg }]}>
+                  <Ionicons name={f.icon as any} size={22} color={f.tint} />
+                </View>
+                <Text style={styles.featureLabel}>{f.label}</Text>
+              </View>
+            ))}
+          </View>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
+          <TextInput
+            value={nameInput}
+            onChangeText={setNameInput}
+            placeholder="What should we call you?"
+            placeholderTextColor={colors.textFaint}
+            style={styles.nameInput}
+            autoCapitalize="words"
+            returnKeyType="done"
+            onSubmitEditing={start}
           />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
+        </View>
 
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <PrimaryButton label="Get Started" onPress={start} />
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  safeArea: {
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
-  },
-  heroSection: {
+  container: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'space-between' },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md },
+  logo: {
+    width: 132,
+    height: 132,
+    borderRadius: 66,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
+    shadowColor: colors.primary,
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: 12 },
+    marginBottom: spacing.sm,
   },
-  title: {
+  brand: { fontSize: 30, fontWeight: '800', color: colors.primary },
+  tagline: {
+    ...font.body,
+    color: colors.textMuted,
+    textAlign: 'center',
+    paddingHorizontal: spacing.xl,
+    lineHeight: 21,
+  },
+  featureRow: { flexDirection: 'row', gap: spacing.xxl, marginTop: spacing.xl },
+  nameInput: {
+    alignSelf: 'stretch',
+    marginTop: spacing.xl,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.white,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    height: 48,
+    paddingHorizontal: spacing.lg,
+    ...font.body,
+    color: colors.text,
     textAlign: 'center',
   },
-  code: {
-    textTransform: 'uppercase',
+  feature: { alignItems: 'center', gap: 6 },
+  featureIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: radii.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  featureLabel: { ...font.small, color: colors.textMuted, fontWeight: '500' },
 });
