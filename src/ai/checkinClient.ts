@@ -1,5 +1,5 @@
 /**
- * The app's connection to the AI check-in Edge Functions.
+ * The app's connection to the AI Edge Functions (check-in, voice, Deep Dives).
  *
  * checkin-chat streams its reply, so we read the response piece by piece
  * with expo/fetch (React Native's built-in fetch can't stream bodies).
@@ -113,6 +113,16 @@ export async function loadDemoData(): Promise<number> {
   await throwIfFailed(res);
   const { inserted } = (await res.json()) as { inserted: number };
   return inserted;
+}
+
+/** Analyzes the user's check-ins into Deep Dives; resolves once they're saved. */
+export async function generateDeepDives(): Promise<void> {
+  const res = await fetch(`${FUNCTIONS_URL}/deep-dive-generate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ language: deviceLanguage() }),
+  });
+  await throwIfFailed(res);
 }
 
 /** Sends the finished conversation; the server extracts and saves it. */

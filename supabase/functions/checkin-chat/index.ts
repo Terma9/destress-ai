@@ -26,7 +26,7 @@ export default {
     }
 
     // Load the user's context. RLS guarantees these queries only see their rows.
-    const [profile, checkins, metrics] = await Promise.all([
+    const [profile, checkins, metrics, reflections] = await Promise.all([
       ctx.supabase.from('profiles').select('display_name, memory').maybeSingle(),
       ctx.supabase
         .from('checkins')
@@ -39,6 +39,11 @@ export default {
         .select('day, stress, emotion, sleep')
         .order('day', { ascending: false })
         .limit(7),
+      ctx.supabase
+        .from('reflections')
+        .select('question, answer')
+        .order('updated_at', { ascending: false })
+        .limit(3),
     ]);
 
     const system = buildCheckinSystemPrompt(
@@ -47,6 +52,7 @@ export default {
         memory: profile.data?.memory ?? '',
         recentCheckins: checkins.data ?? [],
         recentMetrics: metrics.data ?? [],
+        reflections: reflections.data ?? [],
       },
       parseDay(body),
       parseLanguage(body),

@@ -3,7 +3,7 @@
  * Transcriber with OpenAI's speech-to-text endpoint.
  */
 import OpenAI, { toFile } from 'npm:openai@7';
-import type { ChatMessage, JsonSchema, LLMProvider, Transcriber } from './types.ts';
+import type { ChatMessage, JsonSchema, JsonTask, LLMProvider, Transcriber } from './types.ts';
 
 const EXTENSIONS: Record<string, string> = {
   'audio/mp4': 'm4a',
@@ -46,15 +46,18 @@ export function createOpenAIProvider(config: {
   apiKey: string;
   chatModel: string;
   extractModel: string;
+  analysisModel: string;
 }): LLMProvider {
   const client = new OpenAI({ apiKey: config.apiKey });
+  const models = { chat: config.chatModel, extract: config.extractModel, analysis: config.analysisModel };
 
   return {
     name: 'openai',
+    models,
 
     async *streamChat({ system, messages }: { system: string; messages: ChatMessage[] }) {
       const stream = await client.responses.create({
-        model: config.chatModel,
+        model: models.chat,
         instructions: system,
         input: messages,
         stream: true,
@@ -69,18 +72,20 @@ export function createOpenAIProvider(config: {
     },
 
     async generateJson<T>({
+      task,
       system,
       messages,
       schemaName,
       schema,
     }: {
+      task: JsonTask;
       system: string;
       messages: ChatMessage[];
       schemaName: string;
       schema: JsonSchema;
     }): Promise<T> {
       const response = await client.responses.create({
-        model: config.extractModel,
+        model: models[task],
         instructions: system,
         input: messages,
         // Structured output: the model must return JSON matching `schema`.

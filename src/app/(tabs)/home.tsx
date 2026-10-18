@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, GradientCard, Screen } from '@/components/ui';
 import { useCheckins } from '@/data/checkins';
 import { moods } from '@/data/content';
+import { useLatestInsight } from '@/data/deepDives';
 import { computeStreak, getGreeting } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
 import { selectTodayMood, useAppStore } from '@/store/useAppStore';
@@ -21,6 +22,7 @@ export default function Home() {
   const { setTodayMood, name, activityDates, reminderEnabled, setReminderEnabled } = useAppStore();
   const { checkins } = useCheckins();
   const todayMood = useAppStore(selectTodayMood);
+  const insight = useLatestInsight();
   const streak = computeStreak(activityDates);
   const greeting = getGreeting();
 
@@ -79,7 +81,7 @@ export default function Home() {
           <Text style={styles.insightTitle}>Today's Insight</Text>
         </View>
         <Text style={styles.insightBody}>
-          I'm learning about your stress patterns. Log regularly to unlock personalized insights!
+          {insight ?? "I'm learning about your stress patterns. Check in regularly to unlock personalized insights!"}
         </Text>
         <Pressable onPress={() => router.push('/deep-dives')} style={styles.insightBtn}>
           <Text style={styles.insightBtnText}>Explore More</Text>

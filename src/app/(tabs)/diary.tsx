@@ -6,6 +6,7 @@ import { loadDemoData } from '@/ai/checkinClient';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
 import { moodEmoji, useCheckins } from '@/data/checkins';
 import type { MoodKey } from '@/data/content';
+import { MIN_CHECKINS, useLatestInsight } from '@/data/deepDives';
 import { average, useDailyMetrics } from '@/data/metrics';
 import { startOfLast7Days } from '@/lib/dates';
 import { colors, font, gradients, radii, spacing } from '@/theme';
@@ -32,6 +33,7 @@ export default function Diary() {
   const router = useRouter();
   const { checkins, error, reload } = useCheckins();
   const { rows: metricRows, reload: reloadMetrics } = useDailyMetrics();
+  const insight = useLatestInsight();
   const [demo, setDemo] = useState<'idle' | 'loading' | 'error'>('idle');
 
   async function addDemoData() {
@@ -68,17 +70,17 @@ export default function Diary() {
           <Ionicons name="sparkles" size={15} color={colors.white} />
           <Text style={styles.aiBadge}>AI Analysis</Text>
         </View>
-        <Text style={styles.aiTitle}>Early Insights</Text>
+        <Text style={styles.aiTitle}>{insight ? 'Your latest insight' : 'Early Insights'}</Text>
         <Text style={styles.aiBody}>
-          I'm starting to learn your stress patterns. Work-related stress appears frequently. Keep
-          logging to unlock deeper insights and personalized coping strategies.
+          {insight ??
+            `I'm starting to learn your stress patterns. After ${MIN_CHECKINS} check-ins, Deep Dives show you what keeps coming up, with the entries behind it.`}
         </Text>
         <View style={styles.aiBtnRow}>
           <Pressable style={styles.aiBtn} onPress={() => router.push('/(tabs)/tracker')}>
             <Text style={styles.aiBtnText}>View Trends</Text>
           </Pressable>
           <Pressable style={styles.aiBtn} onPress={() => router.push('/deep-dives')}>
-            <Text style={styles.aiBtnText}>Get Advice</Text>
+            <Text style={styles.aiBtnText}>Deep Dives</Text>
           </Pressable>
         </View>
       </GradientCard>

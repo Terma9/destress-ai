@@ -5,6 +5,7 @@
  *   LLM_PROVIDER         openai (default)
  *   LLM_CHAT_MODEL       model for the check-in conversation
  *   LLM_EXTRACT_MODEL    model for turning a conversation into structured data
+ *   LLM_ANALYSIS_MODEL   model for Deep Dives (finding patterns across check-ins)
  *   TRANSCRIBE_PROVIDER  openai (default) — set separately, since not every
  *                        chat provider offers speech-to-text
  *   TRANSCRIBE_MODEL     speech-to-text model
@@ -13,7 +14,7 @@
 import { createOpenAIProvider, createOpenAITranscriber } from './openai.ts';
 import type { LLMProvider, Transcriber } from './types.ts';
 
-export type { ChatMessage, LLMProvider, Transcriber } from './types.ts';
+export type { ChatMessage, JsonTask, LLMProvider, Transcriber } from './types.ts';
 
 function openAIKey(): string {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
@@ -30,6 +31,7 @@ export function getLLM(): LLMProvider {
         apiKey: openAIKey(),
         chatModel: Deno.env.get('LLM_CHAT_MODEL') ?? 'gpt-5.5',
         extractModel: Deno.env.get('LLM_EXTRACT_MODEL') ?? 'gpt-5.5',
+        analysisModel: Deno.env.get('LLM_ANALYSIS_MODEL') ?? 'gpt-5.5',
       });
     default:
       throw new Error(`Unknown LLM_PROVIDER "${provider}".`);

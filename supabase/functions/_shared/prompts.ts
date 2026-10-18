@@ -13,6 +13,7 @@ export type UserContext = {
     follow_ups: string[];
   }[];
   recentMetrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null }[];
+  reflections: { question: string; answer: string }[];
 };
 
 export function buildCheckinSystemPrompt(ctx: UserContext, today: string, language: string): string {
@@ -30,6 +31,10 @@ export function buildCheckinSystemPrompt(ctx: UserContext, today: string, langua
         .map((m) => `- ${m.day}: stress ${m.stress ?? '?'}/10, emotion ${m.emotion ?? '?'}/10, sleep ${m.sleep ?? '?'}/10`)
         .join('\n')
     : 'No data yet.';
+
+  const reflections = ctx.reflections.length
+    ? ctx.reflections.map((r) => `- Q: ${r.question}\n  A: ${r.answer}`).join('\n')
+    : 'None yet.';
 
   return `You are Destress AI, a warm, calm companion for a short daily stress check-in inside a wellbeing app.
 
@@ -53,6 +58,9 @@ ${recent}
 
 ## Their recent tracker values
 ${metrics}
+
+## Their answers to reflection questions from their Deep Dives
+${reflections}
 
 Today is ${today}. If this is a new conversation, greet them${ctx.name ? ` by name` : ''} and open with one personal question, ideally following up on something from their recent check-ins.`;
 }

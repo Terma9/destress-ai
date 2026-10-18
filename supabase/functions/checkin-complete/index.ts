@@ -41,6 +41,7 @@ export default {
     let extraction: CheckinExtraction;
     try {
       const raw = await getLLM().generateJson<CheckinExtraction>({
+        task: 'extract',
         system: buildExtractionSystemPrompt({
           name: profile?.display_name ?? null,
           memory: profile?.memory ?? '',

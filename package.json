@@ -50,7 +50,8 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test:rls": "node --env-file=.env scripts/test-rls.mjs",
-    "test:checkin": "node --env-file=.env scripts/test-checkin.mjs"
+    "test:checkin": "node --env-file=.env scripts/test-checkin.mjs",
+    "test:deep-dives": "node --env-file=.env scripts/test-deep-dives.mjs"
   },
   "private": true
 }

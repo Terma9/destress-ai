@@ -12,15 +12,22 @@ export type ChatMessage = {
 /** A JSON Schema object describing the shape we want the model to return. */
 export type JsonSchema = Record<string, unknown>;
 
+/** What a structured-output call is for; each task can use its own model. */
+export type JsonTask = 'extract' | 'analysis';
+
 export interface LLMProvider {
   /** Provider name, e.g. "openai" — useful in logs. */
   readonly name: string;
+
+  /** The model used per task, e.g. to record which model produced a result. */
+  readonly models: { chat: string } & Record<JsonTask, string>;
 
   /** Stream a chat reply as text chunks, as the model writes it. */
   streamChat(input: { system: string; messages: ChatMessage[] }): AsyncIterable<string>;
 
   /** Ask for an answer that must match `schema`, returned as a parsed object. */
   generateJson<T>(input: {
+    task: JsonTask;
     system: string;
     messages: ChatMessage[];
     schemaName: string;
