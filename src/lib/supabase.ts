@@ -16,11 +16,13 @@ if (!url || !publishableKey) {
 
 export const supabase = createClient(url, publishableKey, {
   auth: {
-    // Keep the user's session on the device so they stay signed in across restarts.
-    storage: AsyncStorage,
+    // Phones keep the session in AsyncStorage so the user stays signed in.
+    // On web, supabase-js picks storage itself: localStorage in the browser,
+    // and in-memory during Expo's static pre-rendering in Node, which has no
+    // `window` (passing AsyncStorage there crashes the build).
+    ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
     autoRefreshToken: true,
     persistSession: true,
-    // Only the web build receives auth redirects in the URL.
-    detectSessionInUrl: Platform.OS === 'web',
+    detectSessionInUrl: false,
   },
 });
