@@ -45,7 +45,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test:rls": "node --env-file=.env scripts/test-rls.mjs"
+    "test:rls": "node --env-file=.env scripts/test-rls.mjs",
+    "test:checkin": "node --env-file=.env scripts/test-checkin.mjs"
   },
   "private": true
 }

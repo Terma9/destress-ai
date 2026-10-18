@@ -15,7 +15,7 @@ export type UserContext = {
   recentMetrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null }[];
 };
 
-export function buildCheckinSystemPrompt(ctx: UserContext, today: string): string {
+export function buildCheckinSystemPrompt(ctx: UserContext, today: string, language: string): string {
   const recent = ctx.recentCheckins.length
     ? ctx.recentCheckins
         .map((c) => {
@@ -39,7 +39,7 @@ export function buildCheckinSystemPrompt(ctx: UserContext, today: string): strin
 - Explore what caused stress or tension today, how they're feeling, how they slept, and what helped.
 - Offer one small, practical suggestion only when it fits naturally, e.g. a breathing exercise or a short walk.
 - The whole check-in should take a few minutes. After about 5–7 exchanges, gently suggest finishing the check-in.
-- Reply in the language the user writes in.
+- Open the conversation in ${language}. After that, always reply in the language the user writes in.
 
 ## Boundaries
 - You are not a therapist and don't diagnose. For persistent or heavy struggles, gently suggest talking to a doctor or therapist.
