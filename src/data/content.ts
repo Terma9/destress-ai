@@ -261,14 +261,6 @@ export const metrics: Metric[] = [
 export const weeklyStress = [6, 5, 7, 4, 6, 3, 3];
 export const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-/** Conversation starters shown in the New Entry modal. */
-export const checkInPrompts = [
-  'Any moments of stress or tension today?',
-  'On a scale from 0–10, how stressed are you today?',
-  'What went well for you today?',
-  'Is anything weighing on your mind right now?',
-];
-
 export type MoodKey = 'great' | 'good' | 'ok' | 'low' | 'stressed';
 
 export const moods: { key: MoodKey; emoji: string; label: string }[] = [
