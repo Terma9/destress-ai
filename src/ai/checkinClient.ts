@@ -5,6 +5,8 @@
  * with expo/fetch (React Native's built-in fetch can't stream bodies).
  */
 import { fetch } from 'expo/fetch';
+import { File } from 'expo-file-system';
+import { Platform } from 'react-native';
 import { dateKey } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
 
@@ -30,26 +32,57 @@ export type CheckinResult = {
 
 const FUNCTIONS_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`;
 
-async function post(name: string, messages: ChatMessage[]) {
-  // Ask for the session each time so we always send a fresh (auto-refreshed) token.
+const deviceLanguage = () => Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 2);
+
+/** Ask for the session each time so we always send a fresh (auto-refreshed) token. */
+async function accessToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
   if (!token) throw new Error('Not signed in.');
+  return token;
+}
 
-  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      messages,
-      day: dateKey(new Date()),
-      language: Intl.DateTimeFormat().resolvedOptions().locale.slice(0, 2),
-    }),
-  });
+async function throwIfFailed(res: { ok: boolean; status: number; json(): Promise<any> }) {
   if (!res.ok) {
     const body = await res.json().catch(() => null);
     throw new Error(body?.error ?? `Request failed (${res.status}).`);
   }
+}
+
+async function post(name: string, messages: ChatMessage[]) {
+  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, day: dateKey(new Date()), language: deviceLanguage() }),
+  });
+  await throwIfFailed(res);
   return res;
+}
+
+/**
+ * Uploads a voice recording and returns the transcript.
+ * Phones record an .m4a file on disk; browsers record webm data in memory.
+ */
+export async function transcribeAudio(uri: string): Promise<string> {
+  let body: Blob;
+  let contentType: string;
+  if (Platform.OS === 'web') {
+    body = await (await globalThis.fetch(uri)).blob();
+    contentType = body.type || 'audio/webm';
+  } else {
+    // The HIGH_QUALITY recording preset produces AAC in an .m4a (MPEG-4) file on iOS and Android.
+    body = new File(uri);
+    contentType = 'audio/mp4';
+  }
+
+  const res = await fetch(`${FUNCTIONS_URL}/transcribe?language=${deviceLanguage()}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': contentType },
+    body,
+  });
+  await throwIfFailed(res);
+  const { text } = (await res.json()) as { text: string };
+  return text;
 }
 
 /** Streams the AI's next message; `onText` receives the reply so far after each piece. */

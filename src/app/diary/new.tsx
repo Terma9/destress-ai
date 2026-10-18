@@ -1,8 +1,16 @@
 /**
  * AI check-in: a short streamed conversation, then "Finish" turns it into a
  * saved diary entry (summary, mood, scores) via the checkin-complete function.
+ * Messages can be typed or spoken; spoken ones are transcribed and sent automatically.
  */
 import { Ionicons } from '@expo/vector-icons';
+import {
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+  useAudioRecorderState,
+} from 'expo-audio';
 import { useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -23,12 +31,20 @@ import {
   type CheckinResult,
   completeCheckin,
   streamCheckinReply,
+  transcribeAudio,
 } from '@/ai/checkinClient';
 import { moods } from '@/data/content';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, font, radii, spacing } from '@/theme';
 
-type Status = 'replying' | 'idle' | 'saving' | 'done';
+type Status = 'replying' | 'idle' | 'recording' | 'transcribing' | 'saving' | 'done';
+
+const MAX_RECORDING_MS = 2 * 60 * 1000;
+
+const formatDuration = (ms: number) => {
+  const s = Math.floor(ms / 1000);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+};
 
 export default function CheckinChat() {
   const router = useRouter();
@@ -41,6 +57,9 @@ export default function CheckinChat() {
   const [status, setStatus] = useState<Status>('replying');
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
+
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recording = useAudioRecorderState(recorder);
 
   /** Asks the AI for its next message and streams it into the conversation. */
   const requestReply = async (history: ChatMessage[]) => {
@@ -63,14 +82,68 @@ export default function CheckinChat() {
     requestReply([]);
   }, []);
 
+  const sendText = (text: string) => {
+    const history: ChatMessage[] = [...messages, { role: 'user', content: text }];
+    setMessages(history);
+    requestReply(history);
+  };
+
   const send = () => {
     const text = draft.trim();
     if (!text || status !== 'idle') return;
-    const history: ChatMessage[] = [...messages, { role: 'user', content: text }];
-    setMessages(history);
     setDraft('');
-    requestReply(history);
+    sendText(text);
   };
+
+  const startRecording = async () => {
+    if (status !== 'idle') return;
+    setError(null);
+    try {
+      const { granted } = await AudioModule.requestRecordingPermissionsAsync();
+      if (!granted) {
+        setError('Microphone access is off. Allow it in your settings to speak your check-in.');
+        return;
+      }
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true });
+      await recorder.prepareToRecordAsync();
+      recorder.record();
+      setStatus('recording');
+    } catch (err) {
+      setError(`Couldn't start recording: ${(err as Error).message}`);
+      setStatus('idle');
+    }
+  };
+
+  /** Stops recording, transcribes it and sends the text as the user's message. */
+  const stopRecording = async () => {
+    if (status !== 'recording') return;
+    setStatus('transcribing');
+    try {
+      await recorder.stop();
+      if (!recorder.uri) throw new Error('No recording was saved.');
+      const text = await transcribeAudio(recorder.uri);
+      if (!text) {
+        setError("I didn't catch that. Try again or type your message.");
+        setStatus('idle');
+        return;
+      }
+      sendText(text);
+    } catch (err) {
+      setError((err as Error).message);
+      setStatus('idle');
+    }
+  };
+
+  const cancelRecording = async () => {
+    if (status !== 'recording') return;
+    await recorder.stop();
+    setStatus('idle');
+  };
+
+  // Recordings stop on their own at the time limit.
+  useEffect(() => {
+    if (status === 'recording' && recording.durationMillis >= MAX_RECORDING_MS) stopRecording();
+  }, [status, recording.durationMillis]);
 
   const finish = async () => {
     setStatus('saving');
@@ -147,24 +220,55 @@ export default function CheckinChat() {
                 </Text>
               </Pressable>
             )}
-            <View style={styles.inputRow}>
-              <TextInput
-                value={draft}
-                onChangeText={setDraft}
-                placeholder="Write how you're doing…"
-                placeholderTextColor={colors.textFaint}
-                style={styles.input}
-                multiline
-                editable={status !== 'saving'}
-              />
-              <Pressable
-                style={[styles.sendBtn, (!draft.trim() || status !== 'idle') && styles.disabled]}
-                disabled={!draft.trim() || status !== 'idle'}
-                onPress={send}
-                accessibilityLabel="Send">
-                <Ionicons name="arrow-up" size={20} color={colors.white} />
-              </Pressable>
-            </View>
+            {status === 'recording' ? (
+              <View style={styles.recordBar}>
+                <Pressable onPress={cancelRecording} hitSlop={8} accessibilityLabel="Cancel recording">
+                  <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
+                </Pressable>
+                <View style={styles.recDot} />
+                <Text style={styles.recText}>
+                  Recording {formatDuration(recording.durationMillis)}
+                  <Text style={styles.recLimit}> / {formatDuration(MAX_RECORDING_MS)}</Text>
+                </Text>
+                <Pressable style={styles.stopBtn} onPress={stopRecording} accessibilityLabel="Stop and send">
+                  <Ionicons name="arrow-up" size={20} color={colors.white} />
+                </Pressable>
+              </View>
+            ) : status === 'transcribing' ? (
+              <View style={styles.recordBar}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.recText}>Transcribing…</Text>
+              </View>
+            ) : (
+              <View style={styles.inputRow}>
+                <TextInput
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder="Write or tap the mic…"
+                  placeholderTextColor={colors.textFaint}
+                  style={styles.input}
+                  multiline
+                  editable={status !== 'saving'}
+                />
+                {draft.trim() ? (
+                  <Pressable
+                    style={[styles.sendBtn, status !== 'idle' && styles.disabled]}
+                    disabled={status !== 'idle'}
+                    onPress={send}
+                    accessibilityLabel="Send">
+                    <Ionicons name="arrow-up" size={20} color={colors.white} />
+                  </Pressable>
+                ) : (
+                  <Pressable
+                    style={[styles.micBtn, status !== 'idle' && styles.disabled]}
+                    disabled={status !== 'idle'}
+                    onPress={startRecording}
+                    accessibilityLabel="Speak your message">
+                    <Ionicons name="mic" size={20} color={colors.white} />
+                  </Pressable>
+                )}
+              </View>
+            )}
           </View>
         </>
       )}
@@ -280,6 +384,34 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  micBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.purple,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 44,
+    paddingLeft: spacing.md,
+    borderRadius: radii.lg,
+    backgroundColor: '#FEF2F2',
+  },
+  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
+  recText: { ...font.body, color: colors.text, fontWeight: '600', flex: 1 },
+  recLimit: { color: colors.textFaint, fontWeight: '400' },
+  stopBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
