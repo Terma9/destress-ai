@@ -111,11 +111,15 @@ const longCheckin = [
 ];
 const done = await fn(token, 'checkin-complete', { messages: longCheckin, day: new Date().toISOString().slice(0, 10), language: 'en' });
 const longId = done.data?.checkin?.id;
-const topics = await (await fetch(`${URL}/rest/v1/checkin_chunks?select=topic,summary,content&checkin_id=eq.${longId}`, {
+const topics = await (await fetch(`${URL}/rest/v1/checkin_chunks?select=topic,title,summary,content&checkin_id=eq.${longId}`, {
   headers: { apikey: KEY, Authorization: `Bearer ${token}` },
 })).json();
-for (const t of topics) console.log(`      [${t.topic}] ${t.summary}`);
+for (const t of topics) console.log(`      [${t.topic}] "${t.title}": ${t.summary}`);
 check('long check-in split into ≥ 3 topic chunks', topics.length >= 3, `${topics.length} chunks`);
+check(
+  'every topic has its own specific title, not just the category',
+  topics.length > 0 && topics.every((t) => t.title && t.title.toLowerCase() !== t.topic),
+);
 check("topic chunks contain the user's exact words", topics.some((t) => t.content.includes('I studied until 1am again')));
 
 for (const query of ['panicking before an exam', 'worried about paying rent', 'worried about my mum']) {

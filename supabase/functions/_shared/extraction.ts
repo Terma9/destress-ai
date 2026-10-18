@@ -32,8 +32,11 @@ export type CheckinExtraction = {
   helped: string[];
   follow_ups: string[];
   risk_level: (typeof RISK_LEVELS)[number];
-  /** For RAG: each topic with a summary and the numbers of the user messages about it ("U2"). */
-  topics: { topic: (typeof THEMES)[number]; summary: string; messages: string[] }[];
+  /**
+   * For RAG: each topic with a fixed category (countable), a free-text title
+   * (precise), a summary and the labels of the user messages about it ("U2").
+   */
+  topics: { topic: (typeof THEMES)[number]; title: string; summary: string; messages: string[] }[];
   memory: string;
 };
 
@@ -99,9 +102,13 @@ export const CHECKIN_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['topic', 'summary', 'messages'],
+        required: ['topic', 'title', 'summary', 'messages'],
         properties: {
-          topic: { type: 'string', enum: THEMES },
+          topic: { type: 'string', enum: THEMES, description: 'The life area this topic belongs to.' },
+          title: {
+            type: 'string',
+            description: 'A specific name for this topic in 2–5 words, in English, e.g. "Statistics resit" or "Mum\'s health".',
+          },
           summary: {
             type: 'string',
             description:

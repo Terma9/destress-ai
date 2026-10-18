@@ -121,6 +121,10 @@ export type SearchResult = {
   title: string | null;
   summary: string | null;
   mood: 'great' | 'good' | 'ok' | 'low' | 'stressed' | null;
+  /** Category of the matched topic, or 'all' when the whole check-in matched. */
+  topic: string;
+  /** Free-text name of the matched topic, e.g. "Statistics resit". */
+  topic_title: string | null;
   similarity: number;
 };
 

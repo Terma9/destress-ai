@@ -56,7 +56,7 @@ async function findRelated(
     return matches.map((m) => ({
       created_at: m.created_at,
       title: m.title,
-      topic: m.chunk_summary,
+      topic: m.topic_title && m.topic !== 'all' ? `${m.topic_title}: ${m.chunk_summary}` : m.chunk_summary,
       messages: messagesById.get(m.checkin_id) ?? [],
     }));
   } catch (err) {

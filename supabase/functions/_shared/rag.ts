@@ -17,7 +17,8 @@ import type { ChatMessage, Embedder } from './llm/index.ts';
 /** Below this similarity a "match" is usually only loosely related. Tuned on the demo persona. */
 export const MIN_SIMILARITY = 0.3;
 
-export type Chunk = { topic: string; summary: string; content: string };
+/** `topic` = fixed category (countable), `title` = free-text name (precise). */
+export type Chunk = { topic: string; title: string; summary: string; content: string };
 
 export type Match = {
   checkin_id: string;
@@ -26,6 +27,8 @@ export type Match = {
   summary: string | null;
   mood: string | null;
   topic: string;
+  /** The matched chunk's title; null for chunks indexed before titles existed. */
+  topic_title: string | null;
   chunk_summary: string;
   similarity: number;
 };
@@ -39,7 +42,7 @@ const userMessages = (messages: ChatMessage[]) => messages.filter((m) => m.role 
  */
 export function topicChunks(
   checkin: { title: string | null; summary: string | null; messages: ChatMessage[] },
-  topics: { topic: string; summary: string; messages: string[] }[],
+  topics: { topic: string; title: string; summary: string; messages: string[] }[],
 ): Chunk[] {
   const said = userMessages(checkin.messages);
   const chunks = topics.flatMap((t) => {
@@ -48,8 +51,10 @@ export function topicChunks(
       .filter((w): w is string => !!w);
     const summary = t.summary.trim();
     if (!summary) return [];
-    const content = `${t.topic}: ${summary}${words.length ? `\nIn their words: ${words.join(' / ')}` : ''}`;
-    return [{ topic: t.topic, summary, content: content.slice(0, 6000) }];
+    const title = t.title.trim().slice(0, 60) || t.topic;
+    // The title is embedded too: it names the topic precisely ("Statistics resit").
+    const content = `${title} (${t.topic}): ${summary}${words.length ? `\nIn their words: ${words.join(' / ')}` : ''}`;
+    return [{ topic: t.topic, title, summary, content: content.slice(0, 6000) }];
   });
   return chunks.length ? chunks : [wholeChunk(checkin)];
 }
@@ -58,7 +63,7 @@ export function topicChunks(
 export function wholeChunk(c: { title: string | null; summary: string | null; messages: ChatMessage[] }): Chunk {
   const summary = c.summary ?? c.title ?? 'Check-in';
   const content = `${c.title ?? 'Check-in'}\n${summary}\nIn their words: ${userMessages(c.messages).join(' / ')}`;
-  return { topic: 'all', summary, content: content.slice(0, 6000) };
+  return { topic: 'all', title: c.title ?? 'Check-in', summary, content: content.slice(0, 6000) };
 }
 
 /** Embeds the chunks (one request) and stores them for the check-in. */

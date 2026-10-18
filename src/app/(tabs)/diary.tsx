@@ -171,6 +171,9 @@ export default function Diary() {
                   <Text style={styles.entryTime}>
                     {timeAgo(Date.parse(r.created_at))} · {r.similarity >= 0.5 ? 'Strong match' : 'Related'}
                   </Text>
+                  {r.topic !== 'all' && r.topic_title && (
+                    <Text style={styles.matched}>Matched: {r.topic_title}</Text>
+                  )}
                   <Text style={styles.entrySummary} numberOfLines={3}>
                     {r.summary}
                   </Text>
@@ -276,6 +279,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   searchInput: { ...font.body, color: colors.text, flex: 1, paddingVertical: spacing.sm },
+  matched: { ...font.small, color: colors.purple, fontWeight: '600', marginTop: 2 },
   searchNote: { ...font.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg },
   demoBtn: {
     marginTop: spacing.md,
