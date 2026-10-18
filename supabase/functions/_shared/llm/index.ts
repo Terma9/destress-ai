@@ -9,12 +9,15 @@
  *   TRANSCRIBE_PROVIDER  openai (default) — set separately, since not every
  *                        chat provider offers speech-to-text
  *   TRANSCRIBE_MODEL     speech-to-text model
+ *   EMBED_PROVIDER       openai (default) — for RAG search
+ *   EMBED_MODEL          embedding model; its vector size must match the
+ *                        database column (1536 for text-embedding-3-small)
  *   OPENAI_API_KEY       required whenever a provider is openai
  */
-import { createOpenAIProvider, createOpenAITranscriber } from './openai.ts';
-import type { LLMProvider, Transcriber } from './types.ts';
+import { createOpenAIEmbedder, createOpenAIProvider, createOpenAITranscriber } from './openai.ts';
+import type { Embedder, LLMProvider, Transcriber } from './types.ts';
 
-export type { ChatMessage, JsonTask, LLMProvider, Transcriber } from './types.ts';
+export type { ChatMessage, Embedder, JsonTask, LLMProvider, Transcriber } from './types.ts';
 
 function openAIKey(): string {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
@@ -49,5 +52,19 @@ export function getTranscriber(): Transcriber {
       });
     default:
       throw new Error(`Unknown TRANSCRIBE_PROVIDER "${provider}".`);
+  }
+}
+
+export function getEmbedder(): Embedder {
+  const provider = Deno.env.get('EMBED_PROVIDER') ?? 'openai';
+
+  switch (provider) {
+    case 'openai':
+      return createOpenAIEmbedder({
+        apiKey: openAIKey(),
+        model: Deno.env.get('EMBED_MODEL') ?? 'text-embedding-3-small',
+      });
+    default:
+      throw new Error(`Unknown EMBED_PROVIDER "${provider}".`);
   }
 }

@@ -11,6 +11,8 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import persona from '../_shared/fixtures/student-persona.json' with { type: 'json' };
+import { getEmbedder } from '../_shared/llm/index.ts';
+import { embedMissing } from '../_shared/rag.ts';
 import { parseDay } from '../_shared/validation.ts';
 
 /** `day` minus `daysAgo` calendar days, as YYYY-MM-DD. */
@@ -65,6 +67,13 @@ export default {
       .eq('id', ctx.userClaims!.id)
       .eq('memory', '');
     if (memoryError) console.error('Seeding memory failed:', memoryError);
+
+    // Make the demo entries searchable by meaning right away (RAG).
+    try {
+      await embedMissing(db, getEmbedder());
+    } catch (err) {
+      console.error('Embedding demo check-ins failed:', err);
+    }
 
     return Response.json({ inserted: rows.length });
   }),

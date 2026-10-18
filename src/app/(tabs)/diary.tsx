@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { loadDemoData } from '@/ai/checkinClient';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { loadDemoData, searchCheckins, type SearchResult } from '@/ai/checkinClient';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
 import { moodEmoji, useCheckins } from '@/data/checkins';
 import type { MoodKey } from '@/data/content';
@@ -34,6 +34,26 @@ export default function Diary() {
   const { checkins, error, reload } = useCheckins();
   const { rows: metricRows, reload: reloadMetrics } = useDailyMetrics();
   const insight = useLatestInsight();
+  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState<
+    { status: 'searching' } | { status: 'done'; results: SearchResult[] } | { status: 'error' } | null
+  >(null);
+
+  async function runSearch() {
+    const q = query.trim();
+    if (!q) return;
+    setSearch({ status: 'searching' });
+    try {
+      setSearch({ status: 'done', results: await searchCheckins(q) });
+    } catch {
+      setSearch({ status: 'error' });
+    }
+  }
+
+  function clearSearch() {
+    setQuery('');
+    setSearch(null);
+  }
   const [demo, setDemo] = useState<'idle' | 'loading' | 'error'>('idle');
 
   async function addDemoData() {
@@ -108,8 +128,59 @@ export default function Diary() {
         </Card>
       </View>
 
-      <SectionHeader title="Recent Entries" />
-      {error ? (
+      <SectionHeader title={search ? 'Search results' : 'Recent Entries'} />
+      {entries.length > 0 && (
+        <View style={styles.searchBox}>
+          <Ionicons name="search" size={16} color={colors.textFaint} />
+          <TextInput
+            style={styles.searchInput}
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={runSearch}
+            placeholder="Search by meaning, e.g. “when was I calm?”"
+            placeholderTextColor={colors.textFaint}
+            returnKeyType="search"
+            maxLength={300}
+          />
+          {(query.length > 0 || search) && (
+            <Pressable onPress={clearSearch} hitSlop={8}>
+              <Ionicons name="close-circle" size={18} color={colors.textFaint} />
+            </Pressable>
+          )}
+        </View>
+      )}
+      {search ? (
+        search.status === 'searching' ? (
+          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        ) : search.status === 'error' ? (
+          <Text style={styles.searchNote}>Search didn't work. Check your connection and try again.</Text>
+        ) : search.results.length === 0 ? (
+          <Text style={styles.searchNote}>No entries are close in meaning to that.</Text>
+        ) : (
+          search.results.map((r) => (
+            <Card
+              key={r.id}
+              style={{ marginBottom: spacing.md }}
+              onPress={() => router.push({ pathname: '/entry/[id]', params: { id: r.id } })}>
+              <View style={styles.entryRow}>
+                <View style={styles.entryEmoji}>
+                  <Text style={{ fontSize: 22 }}>{moodEmoji(r.mood)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.entryTitle}>{r.title ?? 'Check-in'}</Text>
+                  <Text style={styles.entryTime}>
+                    {timeAgo(Date.parse(r.created_at))} · {r.similarity >= 0.5 ? 'Strong match' : 'Related'}
+                  </Text>
+                  <Text style={styles.entrySummary} numberOfLines={3}>
+                    {r.summary}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+              </View>
+            </Card>
+          ))
+        )
+      ) : error ? (
         <EmptyState
           icon={<Ionicons name="cloud-offline-outline" size={32} color={colors.textFaint} />}
           title="Couldn't load your entries"
@@ -193,6 +264,19 @@ const styles = StyleSheet.create({
   statHeadText: { ...font.small, color: colors.textMuted },
   statValue: { fontSize: 22, fontWeight: '700', color: colors.text },
   statLabel: { ...font.small, color: colors.textFaint },
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    backgroundColor: colors.card,
+    borderRadius: radii.pill,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.md,
+  },
+  searchInput: { ...font.body, color: colors.text, flex: 1, paddingVertical: spacing.sm },
+  searchNote: { ...font.body, color: colors.textMuted, textAlign: 'center', marginTop: spacing.lg },
   demoBtn: {
     marginTop: spacing.md,
     paddingHorizontal: spacing.lg,

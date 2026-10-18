@@ -115,6 +115,27 @@ export async function loadDemoData(): Promise<number> {
   return inserted;
 }
 
+export type SearchResult = {
+  id: string;
+  created_at: string;
+  title: string | null;
+  summary: string | null;
+  mood: 'great' | 'good' | 'ok' | 'low' | 'stressed' | null;
+  similarity: number;
+};
+
+/** Finds check-ins by meaning (RAG retrieval), most similar first. */
+export async function searchCheckins(query: string): Promise<SearchResult[]> {
+  const res = await fetch(`${FUNCTIONS_URL}/search-checkins`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query }),
+  });
+  await throwIfFailed(res);
+  const { results } = (await res.json()) as { results: SearchResult[] };
+  return results;
+}
+
 /** Analyzes the user's check-ins into Deep Dives; resolves once they're saved. */
 export async function generateDeepDives(): Promise<void> {
   const res = await fetch(`${FUNCTIONS_URL}/deep-dive-generate`, {

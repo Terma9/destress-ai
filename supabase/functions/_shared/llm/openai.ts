@@ -3,7 +3,7 @@
  * Transcriber with OpenAI's speech-to-text endpoint.
  */
 import OpenAI, { toFile } from 'npm:openai@7';
-import type { ChatMessage, JsonSchema, JsonTask, LLMProvider, Transcriber } from './types.ts';
+import type { ChatMessage, Embedder, JsonSchema, JsonTask, LLMProvider, Transcriber } from './types.ts';
 
 const EXTENSIONS: Record<string, string> = {
   'audio/mp4': 'm4a',
@@ -15,6 +15,22 @@ const EXTENSIONS: Record<string, string> = {
   'audio/x-wav': 'wav',
   'audio/mpeg': 'mp3',
 };
+
+export function createOpenAIEmbedder(config: { apiKey: string; model: string }): Embedder {
+  const client = new OpenAI({ apiKey: config.apiKey });
+
+  return {
+    name: 'openai',
+    model: config.model,
+
+    async embed(texts) {
+      if (!texts.length) return [];
+      // One request for many texts: cheaper and faster than one request each.
+      const result = await client.embeddings.create({ model: config.model, input: texts });
+      return result.data.sort((a, b) => a.index - b.index).map((d) => d.embedding);
+    },
+  };
+}
 
 export function createOpenAITranscriber(config: { apiKey: string; model: string }): Transcriber {
   const client = new OpenAI({ apiKey: config.apiKey });

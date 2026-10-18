@@ -45,3 +45,17 @@ export interface Transcriber {
   /** Turns recorded speech into text. `language` is an ISO code hint like "de". */
   transcribe(input: { audio: Uint8Array; mimeType: string; language?: string }): Promise<string>;
 }
+
+/**
+ * Text embeddings: turns texts into vectors that represent their meaning,
+ * so similar texts end up close together (used for RAG search).
+ * Separate setting again: not every chat provider offers embeddings.
+ */
+export interface Embedder {
+  readonly name: string;
+  /** Stored with the vectors' column size in mind: changing it means re-embedding. */
+  readonly model: string;
+
+  /** One vector per input text, in the same order. */
+  embed(texts: string[]): Promise<number[][]>;
+}

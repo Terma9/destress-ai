@@ -5,10 +5,12 @@
  * Response: { checkin, metrics } — the saved check-in and today's tracker values.
  *
  * Steps: AI extracts structured data → save check-in → update today's
- * tracker values → save the updated memory. Runs as the calling user (RLS).
+ * tracker values → save the updated memory → embed it for RAG search.
+ * Runs as the calling user (RLS).
  */
 import { withSupabase } from 'npm:@supabase/server@1';
-import { getLLM } from '../_shared/llm/index.ts';
+import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
+import { checkinDocument } from '../_shared/rag.ts';
 import {
   buildExtractionSystemPrompt,
   CHECKIN_SCHEMA,
@@ -105,6 +107,15 @@ export default {
       .update({ memory, updated_at: new Date().toISOString() })
       .eq('id', ctx.userClaims!.id);
     if (memoryError) console.error('Updating memory failed:', memoryError);
+
+    // 5. Index the check-in for RAG search. If this fails, search-checkins
+    //    embeds it later, so the user doesn't have to wait or retry.
+    try {
+      const [vector] = await getEmbedder().embed([checkinDocument({ ...record, messages })]);
+      await db.from('checkins').update({ embedding: JSON.stringify(vector) }).eq('id', checkin.id);
+    } catch (err) {
+      console.error('Embedding check-in failed:', err);
+    }
 
     return Response.json({ checkin, metrics });
   }),

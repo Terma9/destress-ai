@@ -9,9 +9,38 @@
  * Runs as the calling user (RLS applies), so it can only load their own data.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
-import { getLLM, type ChatMessage } from '../_shared/llm/index.ts';
+import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
 import { buildCheckinSystemPrompt, START_CHECKIN_MESSAGE } from '../_shared/prompts.ts';
+import { embedMissing, type Match, searchCheckins } from '../_shared/rag.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseLanguage, parseMessages } from '../_shared/validation.ts';
+
+/**
+ * RAG: past check-ins similar in meaning to what the user just said, so the
+ * AI can recall e.g. what helped before a previous exam. Skips the recent
+ * check-ins (already in the prompt). Never blocks the chat: on any error the
+ * conversation simply continues without these.
+ */
+async function findRelated(
+  db: Parameters<typeof embedMissing>[0],
+  messages: ChatMessage[],
+  recentIds: string[],
+): Promise<Match[]> {
+  try {
+    const embedder = getEmbedder();
+    if (!messages.length) {
+      // New check-in: make sure older entries are indexed. A no-op once they are.
+      await embedMissing(db, embedder);
+      return [];
+    }
+    const lastUser = [...messages].reverse().find((m) => m.role === 'user');
+    if (!lastUser) return [];
+    const matches = await searchCheckins(db, embedder, lastUser.content, 6);
+    return matches.filter((m) => !recentIds.includes(m.id)).slice(0, 3);
+  } catch (err) {
+    console.error('Finding related check-ins failed:', err);
+    return [];
+  }
+}
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
@@ -30,7 +59,7 @@ export default {
       ctx.supabase.from('profiles').select('display_name, memory').maybeSingle(),
       ctx.supabase
         .from('checkins')
-        .select('created_at, title, summary, follow_ups')
+        .select('id, created_at, title, summary, follow_ups')
         .not('completed_at', 'is', null)
         .order('created_at', { ascending: false })
         .limit(3),
@@ -46,6 +75,8 @@ export default {
         .limit(3),
     ]);
 
+    const related = await findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id));
+
     const system = buildCheckinSystemPrompt(
       {
         name: profile.data?.display_name ?? null,
@@ -53,6 +84,7 @@ export default {
         recentCheckins: checkins.data ?? [],
         recentMetrics: metrics.data ?? [],
         reflections: reflections.data ?? [],
+        related,
       },
       parseDay(body),
       parseLanguage(body),

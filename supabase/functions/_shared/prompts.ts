@@ -14,6 +14,8 @@ export type UserContext = {
   }[];
   recentMetrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null }[];
   reflections: { question: string; answer: string }[];
+  /** Older check-ins similar to what the user just said (found by RAG search). */
+  related: { created_at: string; title: string | null; summary: string | null; helped: string[] }[];
 };
 
 export function buildCheckinSystemPrompt(ctx: UserContext, today: string, language: string): string {
@@ -35,6 +37,15 @@ export function buildCheckinSystemPrompt(ctx: UserContext, today: string, langua
   const reflections = ctx.reflections.length
     ? ctx.reflections.map((r) => `- Q: ${r.question}\n  A: ${r.answer}`).join('\n')
     : 'None yet.';
+
+  const related = ctx.related.length
+    ? ctx.related
+        .map((c) => {
+          const helped = c.helped.length ? ` What helped: ${c.helped.join('; ')}.` : '';
+          return `- ${c.created_at.slice(0, 10)}: ${c.title ?? 'Check-in'}. ${c.summary ?? ''}${helped}`;
+        })
+        .join('\n')
+    : 'None found.';
 
   return `You are Destress AI, a warm, calm companion for a short daily stress check-in inside a wellbeing app.
 
@@ -61,6 +72,10 @@ ${metrics}
 
 ## Their answers to reflection questions from their Deep Dives
 ${reflections}
+
+## Older check-ins related to what they just said (found by meaning)
+${related}
+When one of these clearly matches what they're going through now, connect to it in a short clause, like a friend who remembers ("Last time before an exam you barely slept…" or what helped back then). Mention at most one, and skip this if nothing really fits.
 
 Today is ${today}. If this is a new conversation, greet them${ctx.name ? ` by name` : ''} and open with one personal question, ideally following up on something from their recent check-ins.`;
 }
