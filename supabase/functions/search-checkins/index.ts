@@ -2,14 +2,15 @@
  * search-checkins — finds the user's check-ins by meaning.
  *
  * Request:  POST { query: 'when was I calm?' }
- * Response: { results: [{ id, created_at, title, summary, mood, helped, similarity }] }
+ * Response: { results: [{ id, created_at, title, summary, mood, topic, chunk_summary, similarity }] }
  *
- * Also embeds any check-ins that don't have a vector yet, so older entries
- * become searchable the first time someone searches.
+ * Searches the topic chunks and returns the best match per check-in. Also
+ * indexes check-ins that have no chunks yet, so older entries become
+ * searchable the first time someone searches.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder } from '../_shared/llm/index.ts';
-import { embedMissing, searchCheckins } from '../_shared/rag.ts';
+import { indexMissing, searchCheckins } from '../_shared/rag.ts';
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
@@ -24,8 +25,9 @@ export default {
 
     try {
       const embedder = getEmbedder();
-      await embedMissing(ctx.supabase, embedder);
-      const results = await searchCheckins(ctx.supabase, embedder, query);
+      await indexMissing(ctx.supabase, embedder);
+      const matches = await searchCheckins(ctx.supabase, embedder, query);
+      const results = matches.map(({ checkin_id, ...m }) => ({ id: checkin_id, ...m }));
       return Response.json({ results });
     } catch (err) {
       console.error('Search failed:', err);

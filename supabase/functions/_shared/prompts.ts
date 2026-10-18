@@ -14,8 +14,14 @@ export type UserContext = {
   }[];
   recentMetrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null }[];
   reflections: { question: string; answer: string }[];
-  /** Older check-ins similar to what the user just said (found by RAG search). */
-  related: { created_at: string; title: string | null; summary: string | null; helped: string[] }[];
+  /** Whole older conversations whose topic matches what the user just said (found by RAG search). */
+  related: {
+    created_at: string;
+    title: string | null;
+    /** The summary of the topic that matched. */
+    topic: string;
+    messages: { role: 'user' | 'assistant'; content: string }[];
+  }[];
 };
 
 export function buildCheckinSystemPrompt(ctx: UserContext, today: string, language: string): string {
@@ -41,10 +47,13 @@ export function buildCheckinSystemPrompt(ctx: UserContext, today: string, langua
   const related = ctx.related.length
     ? ctx.related
         .map((c) => {
-          const helped = c.helped.length ? ` What helped: ${c.helped.join('; ')}.` : '';
-          return `- ${c.created_at.slice(0, 10)}: ${c.title ?? 'Check-in'}. ${c.summary ?? ''}${helped}`;
+          const conversation = c.messages
+            .map((m) => `${m.role === 'user' ? 'User' : 'Destress AI'}: ${m.content}`)
+            .join('\n')
+            .slice(0, 8000);
+          return `### ${c.created_at.slice(0, 10)} · ${c.title ?? 'Check-in'}\nMatched topic: ${c.topic}\n${conversation}`;
         })
-        .join('\n')
+        .join('\n\n')
     : 'None found.';
 
   return `You are Destress AI, a warm, calm companion for a short daily stress check-in inside a wellbeing app.
@@ -73,9 +82,10 @@ ${metrics}
 ## Their answers to reflection questions from their Deep Dives
 ${reflections}
 
-## Older check-ins related to what they just said (found by meaning)
+## Older conversations that match what they just said (found by meaning)
+These are earlier check-ins whose topic matches the user's latest message. If a detail from them clearly helps right now (e.g. what helped last time), you may use it briefly, like a friend who remembers. You don't have to mention them. Lines from "Destress AI" are your own earlier replies, not facts about the user.
+
 ${related}
-When one of these clearly matches what they're going through now, connect to it in a short clause, like a friend who remembers ("Last time before an exam you barely slept…" or what helped back then). Mention at most one, and skip this if nothing really fits.
 
 Today is ${today}. If this is a new conversation, greet them${ctx.name ? ` by name` : ''} and open with one personal question, ideally following up on something from their recent check-ins.`;
 }

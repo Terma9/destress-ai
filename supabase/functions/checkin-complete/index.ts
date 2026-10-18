@@ -5,12 +5,12 @@
  * Response: { checkin, metrics } — the saved check-in and today's tracker values.
  *
  * Steps: AI extracts structured data → save check-in → update today's
- * tracker values → save the updated memory → embed it for RAG search.
+ * tracker values → save the updated memory → split into topic chunks for RAG search.
  * Runs as the calling user (RLS).
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
-import { checkinDocument } from '../_shared/rag.ts';
+import { saveChunks, topicChunks } from '../_shared/rag.ts';
 import {
   buildExtractionSystemPrompt,
   CHECKIN_SCHEMA,
@@ -60,7 +60,7 @@ export default {
     }
 
     // 2. Save the check-in (user_id is filled in from the login by the database).
-    const { memory, ...record } = extraction;
+    const { memory, topics, ...record } = extraction;
     const { data: checkin, error: checkinError } = await db
       .from('checkins')
       .insert({ ...record, messages, completed_at: new Date().toISOString() })
@@ -108,13 +108,12 @@ export default {
       .eq('id', ctx.userClaims!.id);
     if (memoryError) console.error('Updating memory failed:', memoryError);
 
-    // 5. Index the check-in for RAG search. If this fails, search-checkins
-    //    embeds it later, so the user doesn't have to wait or retry.
+    // 5. Index the check-in for RAG search: one chunk per topic. If this
+    //    fails, indexMissing() later adds a whole-check-in chunk instead.
     try {
-      const [vector] = await getEmbedder().embed([checkinDocument({ ...record, messages })]);
-      await db.from('checkins').update({ embedding: JSON.stringify(vector) }).eq('id', checkin.id);
+      await saveChunks(db, getEmbedder(), checkin.id, topicChunks({ ...record, messages }, topics));
     } catch (err) {
-      console.error('Embedding check-in failed:', err);
+      console.error('Indexing check-in failed:', err);
     }
 
     return Response.json({ checkin, metrics });

@@ -32,6 +32,8 @@ export type CheckinExtraction = {
   helped: string[];
   follow_ups: string[];
   risk_level: (typeof RISK_LEVELS)[number];
+  /** For RAG: each topic with a summary and the numbers of the user messages about it ("U2"). */
+  topics: { topic: (typeof THEMES)[number]; summary: string; messages: string[] }[];
   memory: string;
 };
 
@@ -56,6 +58,7 @@ export const CHECKIN_SCHEMA = {
     'helped',
     'follow_ups',
     'risk_level',
+    'topics',
     'memory',
   ],
   properties: {
@@ -89,6 +92,29 @@ export const CHECKIN_SCHEMA = {
       description:
         'high: mentions self-harm, suicide or being in danger. elevated: hopelessness or severe distress without that. none: otherwise.',
     },
+    topics: {
+      type: 'array',
+      description:
+        'The distinct topics of the conversation, used to find this check-in later. Usually 1–3, at most 5.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['topic', 'summary', 'messages'],
+        properties: {
+          topic: { type: 'string', enum: THEMES },
+          summary: {
+            type: 'string',
+            description:
+              'One or two self-contained sentences about this topic with the concrete facts (what, when, how much, what helped), in English.',
+          },
+          messages: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Labels of the user messages about this topic, e.g. ["U1", "U3"]. A message can belong to several topics.',
+          },
+        },
+      },
+    },
     memory: {
       type: 'string',
       description: 'The updated memory text, see instructions.',
@@ -107,6 +133,7 @@ Rules:
 - Base everything only on what the user actually said. Don't invent details.
 - Use null for a score the conversation gives no basis for.
 - Keep "helped" and "follow_ups" short and concrete.
+- Topics: split the conversation by subject, not by message. Several messages about one subject form one topic; a message about two subjects belongs to both.
 
 Updating the memory:
 The memory is a short profile of the user that the companion reads before every check-in. Rewrite it by merging the current memory with anything new and lasting from this conversation: recurring stressors, patterns (e.g. "sleeps badly before deadlines"), what helps, goals, important upcoming events. Drop details that are no longer relevant. Write in English, plain sentences, at most 120 words. Refer to the user by name or as "they"; don't assume their gender. Record only what the user said or showed, not suggestions the companion made. Leave out passing small talk.
@@ -116,10 +143,14 @@ Date of this check-in: ${input.day}
 Current memory: ${input.memory || '(empty — this may be their first check-in)'}`;
 }
 
-/** The conversation as one transcript, so the model analyzes it instead of continuing it. */
+/**
+ * The conversation as one transcript, so the model analyzes it instead of
+ * continuing it. User messages are labelled U1, U2, … so topics can point to them.
+ */
 export function formatTranscript(messages: ChatMessage[]): ChatMessage[] {
+  let n = 0;
   const transcript = messages
-    .map((m) => `${m.role === 'user' ? 'User' : 'Destress AI'}: ${m.content}`)
+    .map((m) => (m.role === 'user' ? `User [U${++n}]: ${m.content}` : `Destress AI: ${m.content}`))
     .join('\n\n');
   return [{ role: 'user', content: `Here is the check-in conversation:\n\n${transcript}` }];
 }
@@ -135,6 +166,7 @@ export function sanitize(e: CheckinExtraction): CheckinExtraction {
     emotion: clamp(e.emotion),
     sleep: clamp(e.sleep),
     follow_ups: e.follow_ups.slice(0, 2),
+    topics: e.topics.filter((t) => t.summary.trim()).slice(0, 5),
     memory: e.memory.trim().slice(0, 1500),
   };
 }

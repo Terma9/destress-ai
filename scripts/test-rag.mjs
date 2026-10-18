@@ -3,8 +3,10 @@
  *
  * The persona's labels say which entries are about exams or walks, so we
  * know what each search should find. Checks the top results (precision@3),
- * search across languages, that unrelated queries find little, and that
- * search never returns another user's entries. Costs a fraction of a cent.
+ * search across languages, that unrelated queries find little, that a long
+ * check-in about four topics is split into topic chunks and found for each
+ * topic, and that search never returns another user's entries.
+ * Makes 1 extraction call plus a few embeddings (about a cent).
  *
  * Run: npm run test:rag
  */
@@ -68,13 +70,14 @@ const token = await signUp();
 const seeded = await fn(token, 'seed-demo', { day: new Date().toISOString().slice(0, 10) });
 check('demo persona loaded and embedded', seeded.status === 200, `${seeded.data?.inserted} check-ins`);
 
-const { count } = await (async () => {
-  const res = await fetch(`${URL}/rest/v1/checkins?select=id&embedding=not.is.null`, {
+async function countRows(path) {
+  const res = await fetch(`${URL}/rest/v1/${path}`, {
     headers: { apikey: KEY, Authorization: `Bearer ${token}`, Prefer: 'count=exact', Range: '0-0' },
   });
-  return { count: Number(res.headers.get('content-range')?.split('/')[1]) };
-})();
-check('every check-in has an embedding', count === 17, `${count} of 17`);
+  return Number(res.headers.get('content-range')?.split('/')[1]);
+}
+const chunks = await countRows('checkin_chunks?select=id');
+check('every demo check-in is indexed (one whole-check-in chunk each)', chunks === 17, `${chunks} chunks`);
 
 const exams = await search(token, 'stressed and sleeping badly before an exam');
 const p1 = precisionAt3(exams, ['pre_exam', 'exam_day']);
@@ -94,6 +97,32 @@ check('German query finds English walk entries', p3 >= 2 / 3, `precision@3 = ${p
 
 const unrelated = await search(token, 'recipe for tomato pasta');
 check('unrelated query finds (almost) nothing', unrelated.length <= 1, `${unrelated.length} results`);
+
+console.log('\n  Long check-in about four topics (through checkin-complete, with topic splitting)');
+const longCheckin = [
+  { role: 'assistant', content: 'Hi! How was your day?' },
+  { role: 'user', content: "So much today. First, the Statistics resit is in a week and I'm already panicking, I studied until 1am again." },
+  { role: 'assistant', content: "That's a lot of pressure already. What else is on your mind?" },
+  { role: 'user', content: "My mum called, she's having health problems and I feel guilty that I can't visit her because of uni." },
+  { role: 'assistant', content: 'That sounds really hard. Anything else weighing on you?' },
+  { role: 'user', content: "Also my landlord is raising the rent next month and I honestly don't know how I'll pay it with only the café job." },
+  { role: 'assistant', content: 'Was there any moment today that felt a bit lighter?' },
+  { role: 'user', content: 'The only good part: I walked along the river in the evening and for twenty minutes my head was quiet.' },
+];
+const done = await fn(token, 'checkin-complete', { messages: longCheckin, day: new Date().toISOString().slice(0, 10), language: 'en' });
+const longId = done.data?.checkin?.id;
+const topics = await (await fetch(`${URL}/rest/v1/checkin_chunks?select=topic,summary,content&checkin_id=eq.${longId}`, {
+  headers: { apikey: KEY, Authorization: `Bearer ${token}` },
+})).json();
+for (const t of topics) console.log(`      [${t.topic}] ${t.summary}`);
+check('long check-in split into ≥ 3 topic chunks', topics.length >= 3, `${topics.length} chunks`);
+check("topic chunks contain the user's exact words", topics.some((t) => t.content.includes('I studied until 1am again')));
+
+for (const query of ['panicking before an exam', 'worried about paying rent', 'worried about my mum']) {
+  const results = await search(token, query);
+  const rank = results.findIndex((r) => r.id === longId) + 1;
+  check(`"${query}" finds the long check-in`, rank > 0, rank ? `rank ${rank}` : 'not found');
+}
 
 const stranger = await signUp();
 const peek = await fn(stranger, 'search-checkins', { query: 'exam' });

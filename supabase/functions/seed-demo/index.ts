@@ -12,7 +12,7 @@
 import { withSupabase } from 'npm:@supabase/server@1';
 import persona from '../_shared/fixtures/student-persona.json' with { type: 'json' };
 import { getEmbedder } from '../_shared/llm/index.ts';
-import { embedMissing } from '../_shared/rag.ts';
+import { indexMissing } from '../_shared/rag.ts';
 import { parseDay } from '../_shared/validation.ts';
 
 /** `day` minus `daysAgo` calendar days, as YYYY-MM-DD. */
@@ -70,9 +70,9 @@ export default {
 
     // Make the demo entries searchable by meaning right away (RAG).
     try {
-      await embedMissing(db, getEmbedder());
+      await indexMissing(db, getEmbedder());
     } catch (err) {
-      console.error('Embedding demo check-ins failed:', err);
+      console.error('Indexing demo check-ins failed:', err);
     }
 
     return Response.json({ inserted: rows.length });

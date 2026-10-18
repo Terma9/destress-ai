@@ -10,32 +10,55 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
-import { buildCheckinSystemPrompt, START_CHECKIN_MESSAGE } from '../_shared/prompts.ts';
-import { embedMissing, type Match, searchCheckins } from '../_shared/rag.ts';
+import { buildCheckinSystemPrompt, START_CHECKIN_MESSAGE, type UserContext } from '../_shared/prompts.ts';
+import { indexMissing, searchCheckins } from '../_shared/rag.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseLanguage, parseMessages } from '../_shared/validation.ts';
 
+/** How many older conversations RAG may add to the prompt. Each is a whole check-in, so keep it small. */
+const MAX_RELATED = 2;
+
+type Related = UserContext['related'][number];
+
 /**
- * RAG: past check-ins similar in meaning to what the user just said, so the
- * AI can recall e.g. what helped before a previous exam. Skips the recent
- * check-ins (already in the prompt). Never blocks the chat: on any error the
- * conversation simply continues without these.
+ * RAG, small-to-big: find the topic chunks closest to what the user just
+ * said, then hand the model the whole conversations they come from, so it
+ * can recall details (e.g. what helped before a previous exam). Skips the
+ * recent check-ins (already in the prompt). Never blocks the chat: on any
+ * error the conversation simply continues without these.
  */
 async function findRelated(
-  db: Parameters<typeof embedMissing>[0],
+  db: Parameters<typeof indexMissing>[0],
   messages: ChatMessage[],
   recentIds: string[],
-): Promise<Match[]> {
+): Promise<Related[]> {
   try {
     const embedder = getEmbedder();
     if (!messages.length) {
       // New check-in: make sure older entries are indexed. A no-op once they are.
-      await embedMissing(db, embedder);
+      await indexMissing(db, embedder);
       return [];
     }
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');
     if (!lastUser) return [];
-    const matches = await searchCheckins(db, embedder, lastUser.content, 6);
-    return matches.filter((m) => !recentIds.includes(m.id)).slice(0, 3);
+
+    const matches = (await searchCheckins(db, embedder, lastUser.content, 6))
+      .filter((m) => !recentIds.includes(m.checkin_id))
+      .slice(0, MAX_RELATED);
+    if (!matches.length) return [];
+
+    const { data, error } = await db
+      .from('checkins')
+      .select('id, messages')
+      .in('id', matches.map((m) => m.checkin_id));
+    if (error) throw error;
+    const messagesById = new Map((data ?? []).map((c) => [c.id, c.messages as ChatMessage[]]));
+
+    return matches.map((m) => ({
+      created_at: m.created_at,
+      title: m.title,
+      topic: m.chunk_summary,
+      messages: messagesById.get(m.checkin_id) ?? [],
+    }));
   } catch (err) {
     console.error('Finding related check-ins failed:', err);
     return [];
