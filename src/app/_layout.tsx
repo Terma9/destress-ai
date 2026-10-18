@@ -19,6 +19,7 @@ export default function RootLayout() {
             <Stack.Screen name="diary/new" options={{ presentation: 'modal' }} />
             <Stack.Screen name="untangle/new" options={{ presentation: 'modal' }} />
             <Stack.Screen name="untangle/[id]" />
+            <Stack.Screen name="success/[id]" />
             <Stack.Screen name="deep-dives" />
             <Stack.Screen name="knowledge" />
             <Stack.Screen name="exercise/[id]" />

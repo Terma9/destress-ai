@@ -28,6 +28,8 @@ export type CheckinResult = {
     risk_level: 'none' | 'elevated' | 'high';
   };
   metrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null; source: string } | null;
+  /** Success stories created because an Untangle plan worked. */
+  successes: { id: string; title: string }[];
 };
 
 const FUNCTIONS_URL = `${process.env.EXPO_PUBLIC_SUPABASE_URL}/functions/v1`;

@@ -3,12 +3,14 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, EmptyState, GradientCard, Screen, SectionHeader } from '@/components/ui';
 import { intensityColor } from '@/components/untangle';
+import { THEME_LABELS, useMyStories } from '@/data/community';
 import { useUntangleSessions } from '@/data/untangle';
 import { colors, font, gradients, radii, spacing } from '@/theme';
 
 export default function UntangleHome() {
   const router = useRouter();
   const { sessions, error } = useUntangleSessions();
+  const stories = useMyStories();
 
   return (
     <Screen>
@@ -28,6 +30,29 @@ export default function UntangleHome() {
           <Text style={styles.heroBtnText}>Untangle it</Text>
         </Pressable>
       </GradientCard>
+
+      {stories && stories.length > 0 && (
+        <>
+          <SectionHeader title="What worked for you" />
+          {stories.map((st) => (
+            <Card
+              key={st.id}
+              style={[{ marginBottom: spacing.md }, styles.story]}
+              onPress={() => router.push({ pathname: '/success/[id]', params: { id: st.id } })}>
+              <View style={styles.row}>
+                <Text style={{ fontSize: 22 }}>🏆</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{st.title}</Text>
+                  <Text style={styles.meta}>
+                    {THEME_LABELS[st.theme] ?? st.theme} · {st.status === 'published' ? 'Shared in the community' : 'Private'}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+              </View>
+            </Card>
+          ))}
+        </>
+      )}
 
       <SectionHeader title="Your plans" />
       {error ? (
@@ -96,5 +121,6 @@ const styles = StyleSheet.create({
   cardTitle: { ...font.title, color: colors.text },
   meta: { ...font.small, color: colors.textFaint, marginTop: 2 },
   scores: { fontSize: 18, fontWeight: '700', color: colors.textFaint },
+  story: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' },
   open: { ...font.small, color: colors.purple, fontWeight: '600', marginTop: spacing.sm },
 });

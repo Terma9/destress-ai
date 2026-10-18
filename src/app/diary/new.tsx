@@ -93,7 +93,12 @@ export default function CheckinChat() {
       </View>
 
       {status === 'done' && result ? (
-        <Summary result={result} onDone={() => router.back()} bottomInset={insets.bottom} />
+        <Summary
+          result={result}
+          onDone={() => router.back()}
+          onOpenStory={(id) => router.replace({ pathname: '/success/[id]', params: { id } })}
+          bottomInset={insets.bottom}
+        />
       ) : (
         <>
           <ScrollView
@@ -148,7 +153,17 @@ export default function CheckinChat() {
 }
 
 /** The saved entry, plus crisis contacts when the conversation raised concern. */
-function Summary({ result, onDone, bottomInset }: { result: CheckinResult; onDone: () => void; bottomInset: number }) {
+function Summary({
+  result,
+  onDone,
+  onOpenStory,
+  bottomInset,
+}: {
+  result: CheckinResult;
+  onDone: () => void;
+  onOpenStory: (id: string) => void;
+  bottomInset: number;
+}) {
   const c = result.checkin;
   const mood = moods.find((m) => m.key === c.mood);
   const scores = [
@@ -181,6 +196,17 @@ function Summary({ result, onDone, bottomInset }: { result: CheckinResult; onDon
           <Text style={styles.helped}>What helped: {c.helped.join(', ')}</Text>
         )}
       </View>
+
+      {(result.successes ?? []).map((story) => (
+        <Pressable key={story.id} style={styles.success} onPress={() => onOpenStory(story.id)}>
+          <Text style={styles.successEmoji}>🏆</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.successTitle}>Your plan worked: {story.title}</Text>
+            <Text style={styles.successBody}>Saved as a success story. Add your own words or share it.</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color="#92400E" />
+        </Pressable>
+      ))}
 
       <Pressable style={styles.doneBtn} onPress={onDone}>
         <Text style={styles.doneText}>Done</Text>
@@ -228,6 +254,19 @@ const styles = StyleSheet.create({
   scoreValue: { ...font.title, color: colors.text },
   scoreLabel: { ...font.small, color: colors.textFaint },
   helped: { ...font.small, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs },
+  success: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: '#FEF3C7',
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+  },
+  successEmoji: { fontSize: 28 },
+  successTitle: { ...font.title, color: '#92400E' },
+  successBody: { ...font.small, color: '#92400E', marginTop: 2 },
   doneBtn: { backgroundColor: colors.primary, borderRadius: radii.pill, height: 52, alignItems: 'center', justifyContent: 'center' },
   doneText: { color: colors.white, fontSize: 16, fontWeight: '600' },
 });
