@@ -3,9 +3,9 @@ import { useRouter } from 'expo-router';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
 import { moodEmoji, useCheckins } from '@/data/checkins';
-import { type MoodKey, metrics as metricsMeta } from '@/data/content';
+import type { MoodKey } from '@/data/content';
+import { average, useDailyMetrics } from '@/data/metrics';
 import { startOfLast7Days } from '@/lib/dates';
-import { useAppStore } from '@/store/useAppStore';
 import { colors, font, gradients, radii, spacing } from '@/theme';
 
 function timeAgo(ts: number) {
@@ -29,13 +29,11 @@ const moodPositivity: Record<MoodKey, number> = {
 export default function Diary() {
   const router = useRouter();
   const { checkins, error } = useCheckins();
-  const stress = useAppStore((s) => s.metrics.stress);
+  const { rows: metricRows } = useDailyMetrics();
 
   const entries = checkins ?? [];
   const thisWeek = entries.filter((e) => Date.parse(e.created_at) >= startOfLast7Days()).length;
-  const stressAvg = metricsMeta.find((m) => m.id === 'stress')?.weeklyAvg ?? 5;
-  const delta = Math.round(((stress - stressAvg) / stressAvg) * 100);
-  const improving = delta <= 0;
+  const avgStress = metricRows ? average(metricRows, 'stress') : null;
 
   return (
     <Screen>
@@ -74,18 +72,14 @@ export default function Diary() {
       <View style={styles.statsRow}>
         <Card style={styles.stat}>
           <View style={styles.statHead}>
-            <Ionicons
-              name={improving ? 'trending-down' : 'trending-up'}
-              size={15}
-              color={improving ? colors.green : colors.danger}
-            />
-            <Text style={styles.statHeadText}>This Week</Text>
+            <Ionicons name="pulse-outline" size={15} color={colors.danger} />
+            <Text style={styles.statHeadText}>Avg stress</Text>
           </View>
-          <Text style={[styles.statValue, { color: improving ? colors.green : colors.danger }]}>
-            {delta > 0 ? '+' : ''}
-            {delta}%
+          <Text style={styles.statValue}>
+            {avgStress ?? '–'}
+            {avgStress !== null && <Text style={styles.statLabel}>/10</Text>}
           </Text>
-          <Text style={styles.statLabel}>Stress vs weekly avg</Text>
+          <Text style={styles.statLabel}>Last 7 days</Text>
         </Card>
         <Card style={styles.stat}>
           <View style={styles.statHead}>

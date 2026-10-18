@@ -2,7 +2,8 @@
  * Local app state (zustand) with AsyncStorage persistence: the user's name,
  * daily mood check-in, activity history (for the streak), exercise sessions,
  * article read-state and preferences.
- * Diary entries are not here — they live in Supabase (see src/data/checkins.ts).
+ * Diary entries and tracker values are not here — they live in Supabase
+ * (see src/data/checkins.ts and src/data/metrics.ts).
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
@@ -17,9 +18,6 @@ export type ExerciseSession = {
   completedAt: number;
 };
 
-export type MetricKey = 'stress' | 'emotion' | 'sleep';
-export type Metrics = Record<MetricKey, number>;
-
 type AppState = {
   onboarded: boolean;
   name: string;
@@ -28,7 +26,6 @@ type AppState = {
   activityDates: string[];
   sessions: ExerciseSession[];
   readArticles: string[];
-  metrics: Metrics;
   reminderEnabled: boolean;
   setOnboarded: (v: boolean) => void;
   setName: (name: string) => void;
@@ -37,7 +34,6 @@ type AppState = {
   recordActivity: () => void;
   addSession: (exerciseId: string, minutes: number) => void;
   markArticleRead: (id: string) => void;
-  setMetric: (key: MetricKey, value: number) => void;
   setReminderEnabled: (v: boolean) => void;
 };
 
@@ -57,7 +53,6 @@ export const useAppStore = create<AppState>()(
       activityDates: [],
       sessions: [],
       readArticles: [],
-      metrics: { stress: 3, emotion: 8, sleep: 7 },
       reminderEnabled: false,
       setOnboarded: (v) => set({ onboarded: v }),
       setName: (name) => set({ name: name.trim() }),
@@ -80,19 +75,16 @@ export const useAppStore = create<AppState>()(
         set((s) => ({
           readArticles: s.readArticles.includes(id) ? s.readArticles : [...s.readArticles, id],
         })),
-      setMetric: (key, value) =>
-        set((s) => ({
-          metrics: { ...s.metrics, [key]: Math.max(0, Math.min(10, value)) },
-        })),
       setReminderEnabled: (v) => set({ reminderEnabled: v }),
     }),
     {
       name: 'destress-ai-store',
       storage: createJSONStorage(() => AsyncStorage),
-      // Drop the old local diary entries saved by earlier versions; they now live in Supabase.
-      version: 1,
+      // Drop data earlier versions kept locally and that now lives in Supabase:
+      // diary entries (v1) and tracker values (v2).
+      version: 2,
       migrate: (persisted) => {
-        const { entries: _entries, ...rest } = persisted as Record<string, unknown>;
+        const { entries: _entries, metrics: _metrics, ...rest } = persisted as Record<string, unknown>;
         return rest as unknown as AppState;
       },
     },

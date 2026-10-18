@@ -212,54 +212,52 @@ export const deepDives: DeepDive[] = [
   },
 ];
 
+export type MetricKey = 'stress' | 'emotion' | 'sleep';
+
 export type Metric = {
-  id: 'stress' | 'emotion' | 'sleep';
+  id: MetricKey;
   label: string;
   max: 10;
-  weeklyAvg: number;
   lowLabel: string;
   highLabel: string;
   icon: string;
   gradient: readonly [string, string];
+  chartColor: string;
 };
 
-/** Metadata only — the live score for each metric lives in useAppStore so users can edit it. */
+/** How each tracker metric looks. The values themselves live in Supabase (see src/data/metrics.ts). */
 export const metrics: Metric[] = [
   {
     id: 'stress',
     label: 'Stress',
     max: 10,
-    weeklyAvg: 5.1,
     lowLabel: 'Low',
     highLabel: 'High',
     icon: 'pulse-outline',
     gradient: gradients.stress,
+    chartColor: '#EF4444',
   },
   {
     id: 'emotion',
     label: 'Emotion',
     max: 10,
-    weeklyAvg: 6.0,
     lowLabel: 'Low',
     highLabel: 'High',
     icon: 'happy-outline',
     gradient: gradients.emotion,
+    chartColor: '#0D9488',
   },
   {
     id: 'sleep',
     label: 'Sleep Quality',
     max: 10,
-    weeklyAvg: 6.9,
     lowLabel: 'Poor',
     highLabel: 'Great',
     icon: 'moon-outline',
     gradient: gradients.sleep,
+    chartColor: '#7C3AED',
   },
 ];
-
-/** 7-day stress series for the tracker chart (0..10). */
-export const weeklyStress = [6, 5, 7, 4, 6, 3, 3];
-export const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export type MoodKey = 'great' | 'good' | 'ok' | 'low' | 'stressed';
 
