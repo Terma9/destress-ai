@@ -46,6 +46,7 @@ export default function RootLayout() {
             <Stack.Screen name="article/[id]" />
             <Stack.Screen name="deep-dive/[id]" />
             <Stack.Screen name="entry/[id]" />
+            <Stack.Screen name="search" />
           </Stack>
         </AuthGate>
       </AuthProvider>

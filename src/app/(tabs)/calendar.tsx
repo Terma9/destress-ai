@@ -1,7 +1,8 @@
 /**
  * Calendar: a month of stress, sleep or mood as color fields. Tap a day to
- * see its values and check-in. The list of all entries (with search by
- * meaning) is one tap away in the top right.
+ * see its values and check-in, and adjust the values if they feel off.
+ * Below, one chart shows all three over the month with averages vs last
+ * month. Search by meaning is one tap away in the top right.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,8 +12,11 @@ import Animated, { FadeIn as Appear, useAnimatedStyle, useSharedValue, withSprin
 import { InlineLoader } from '@/components/brand';
 import { FIELD_LABELS, fieldShade } from '@/components/fields';
 import { FadeIn, PressableScale } from '@/components/motion';
+import { DayReview } from '@/components/review';
+import { TrendChart } from '@/components/TrendChart';
 import { Card, EmptyState, Screen } from '@/components/ui';
 import { useMonth } from '@/data/calendar';
+import { type DayValues, saveDayValues } from '@/data/checkins';
 import type { DailyMetric } from '@/data/metrics';
 import { dateKey } from '@/lib/dates';
 import { colors, type FieldKey, fields, font, fontFamily, gradients, radii, shadow, spacing } from '@/theme';
@@ -32,7 +36,9 @@ export default function Calendar() {
   const [view, setView] = useState({ year: now.getFullYear(), month: now.getMonth() });
   const [kind, setKind] = useState<FieldKey>('stress');
   const [selected, setSelected] = useState(today);
-  const { data, error } = useMonth(view.year, view.month);
+  const { data, error, reload } = useMonth(view.year, view.month);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const leading = (new Date(view.year, view.month, 1).getDay() + 6) % 7; // Monday first
@@ -48,6 +54,25 @@ export default function Calendar() {
   const checkin = data?.checkins.get(selected);
   const selectedDate = new Date(`${selected}T12:00:00`);
 
+  // One value per day of the month for the chart; future days stay empty.
+  const monthDays = Array.from({ length: daysInMonth }, (_, i) => dateKey(new Date(view.year, view.month, i + 1)));
+  const series = Object.fromEntries(
+    KINDS.map((k) => [k, monthDays.map((d) => (d > today ? null : valueOf(data?.metrics.get(d), k)))]),
+  ) as Record<FieldKey, (number | null)[]>;
+
+  async function saveAdjusted(values: DayValues, changed: boolean) {
+    if (!checkin) return;
+    if (!changed) return setEditing(false);
+    setSaving(true);
+    try {
+      await saveDayValues(checkin.id, selected, values, true);
+      reload();
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -59,7 +84,7 @@ export default function Calendar() {
           <Pressable onPress={() => shift(1)} hitSlop={8} style={styles.round} accessibilityLabel="Next month">
             <Ionicons name="chevron-forward" size={18} color={colors.ink} />
           </Pressable>
-          <Pressable onPress={() => router.push('/(tabs)/diary')} hitSlop={8} style={styles.round} accessibilityLabel="All entries and search">
+          <Pressable onPress={() => router.push('/search')} hitSlop={8} style={styles.round} accessibilityLabel="Search your entries">
             <Ionicons name="search" size={17} color={colors.ink} />
           </Pressable>
         </View>
@@ -98,7 +123,10 @@ export default function Calendar() {
               <Animated.View key={day} entering={Appear.duration(320).delay(i * 14)} style={styles.cellBox}>
                 <Pressable
                   disabled={future}
-                  onPress={() => setSelected(day)}
+                  onPress={() => {
+                    setSelected(day);
+                    setEditing(false);
+                  }}
                   accessibilityLabel={`${day}${value !== null ? `, ${FIELD_LABELS[kind]} ${value}` : ''}`}
                   style={[
                     styles.cell,
@@ -129,7 +157,19 @@ export default function Calendar() {
         <Text style={styles.legendText}>high</Text>
       </View>
 
-      {data && (
+      {data && editing && checkin ? (
+        <FadeIn key={`edit-${selected}`} style={{ marginTop: spacing.lg }}>
+          <DayReview
+            suggested={{ stress: valueOf(metric, 'stress'), sleep: valueOf(metric, 'sleep'), mood: valueOf(metric, 'mood') }}
+            reasons={checkin.score_reasons ?? {}}
+            saving={saving}
+            onSave={saveAdjusted}
+          />
+          <Pressable onPress={() => setEditing(false)} style={styles.cancel}>
+            <Text style={styles.cancelText}>Cancel</Text>
+          </Pressable>
+        </FadeIn>
+      ) : data ? (
         <FadeIn key={selected} style={{ marginTop: spacing.lg }}>
           <Card>
             <Text style={styles.dayLabel}>
@@ -154,12 +194,18 @@ export default function Calendar() {
             </View>
             {checkin?.summary ? <Text style={styles.summary}>{checkin.summary}</Text> : null}
             {checkin ? (
-              <PressableScale
-                style={styles.link}
-                onPress={() => router.push({ pathname: '/entry/[id]', params: { id: checkin.id } })}>
-                <Text style={styles.linkText}>Open entry</Text>
-                <Ionicons name="arrow-forward" size={15} color={colors.ink} />
-              </PressableScale>
+              <View style={styles.actions}>
+                <PressableScale
+                  style={styles.link}
+                  onPress={() => router.push({ pathname: '/entry/[id]', params: { id: checkin.id } })}>
+                  <Text style={styles.linkText}>Open entry</Text>
+                  <Ionicons name="arrow-forward" size={15} color={colors.ink} />
+                </PressableScale>
+                <PressableScale style={styles.adjust} onPress={() => setEditing(true)}>
+                  <Ionicons name="options-outline" size={14} color={colors.ink} />
+                  <Text style={styles.adjustText}>Adjust values</Text>
+                </PressableScale>
+              </View>
             ) : selected === today ? (
               <PressableScale onPress={() => router.push('/diary/new')} style={{ marginTop: spacing.md }}>
                 <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cta}>
@@ -169,6 +215,16 @@ export default function Calendar() {
               </PressableScale>
             ) : null}
           </Card>
+        </FadeIn>
+      ) : null}
+
+      {data && (
+        <FadeIn delay={200} style={{ marginTop: spacing.lg }}>
+          <TrendChart
+            series={series}
+            selectedIndex={monthDays.includes(selected) ? monthDays.indexOf(selected) : null}
+            previous={data.previous}
+          />
         </FadeIn>
       )}
     </Screen>
@@ -232,7 +288,20 @@ const styles = StyleSheet.create({
   chip: { borderRadius: radii.pill, paddingHorizontal: 10, paddingVertical: 5 },
   chipText: { fontFamily: fontFamily.semibold, fontSize: 12 },
   summary: { ...font.body, color: colors.inkSoft, marginTop: spacing.md, lineHeight: 20 },
-  link: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.md, alignSelf: 'flex-start' },
+  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md },
+  link: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' },
+  adjust: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.sand,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  adjustText: { fontFamily: fontFamily.semibold, fontSize: 13, color: colors.ink },
+  cancel: { alignSelf: 'center', padding: spacing.md },
+  cancelText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.textMuted },
   linkText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink },
   cta: {
     flexDirection: 'row',

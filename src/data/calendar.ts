@@ -14,7 +14,15 @@ export type MonthData = {
   metrics: Map<string, DailyMetric>;
   /** YYYY-MM-DD → that day's check-in (the latest, if there were several). */
   checkins: Map<string, Checkin>;
+  /** Average stress, sleep and mood of the month before (null if no data), for "vs last month". */
+  previous: { stress: number | null; sleep: number | null; mood: number | null };
 };
+
+/** Average of the known values, rounded to one decimal; null if there are none. */
+export function average(values: (number | null)[]): number | null {
+  const known = values.filter((v): v is number => v !== null);
+  return known.length ? Math.round((known.reduce((a, b) => a + b, 0) / known.length) * 10) / 10 : null;
+}
 
 /** First and last day of a month as YYYY-MM-DD. `month` is 0-based like Date. */
 export function monthRange(year: number, month: number): { first: string; last: string } {
@@ -23,24 +31,30 @@ export function monthRange(year: number, month: number): { first: string; last: 
 
 export async function fetchMonth(year: number, month: number): Promise<MonthData> {
   const { first, last } = monthRange(year, month);
-  // Check-ins are timestamps; widen by a day on each side so time zones can't cut one off.
-  const from = new Date(year, month, 0).toISOString();
-  const to = new Date(year, month + 1, 1, 23, 59).toISOString();
+  const prev = monthRange(year, month - 1);
   const [metrics, checkins] = await Promise.all([
-    supabase.from('daily_metrics').select('day, stress, emotion, sleep, source').gte('day', first).lte('day', last),
+    // This month and the one before (for the averages comparison) in one query.
+    supabase.from('daily_metrics').select('day, stress, emotion, sleep, source').gte('day', prev.first).lte('day', last),
     supabase
       .from('checkins')
-      .select('id, created_at, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level')
+      .select('id, day, created_at, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level, score_reasons')
       .not('completed_at', 'is', null)
-      .gte('created_at', from)
-      .lte('created_at', to)
+      .gte('day', first)
+      .lte('day', last)
       .order('created_at'),
   ]);
   if (metrics.error) throw new Error(metrics.error.message);
   if (checkins.error) throw new Error(checkins.error.message);
+  const all = metrics.data as DailyMetric[];
+  const before = all.filter((m) => m.day < first);
   return {
-    metrics: new Map((metrics.data as DailyMetric[]).map((m) => [m.day, m])),
-    checkins: new Map((checkins.data as Checkin[]).map((c) => [dateKey(new Date(c.created_at)), c])),
+    metrics: new Map(all.filter((m) => m.day >= first).map((m) => [m.day, m])),
+    checkins: new Map((checkins.data as Checkin[]).map((c) => [c.day ?? dateKey(new Date(c.created_at)), c])),
+    previous: {
+      stress: average(before.map((m) => m.stress)),
+      sleep: average(before.map((m) => m.sleep)),
+      mood: average(before.map((m) => m.emotion)),
+    },
   };
 }
 
@@ -48,13 +62,12 @@ export async function fetchMonth(year: number, month: number): Promise<MonthData
 export function useMonth(year: number, month: number) {
   const [data, setData] = useState<MonthData | null>(null);
   const [error, setError] = useState(false);
-  useFocusEffect(
-    useCallback(() => {
-      setError(false);
-      fetchMonth(year, month)
-        .then(setData)
-        .catch(() => setError(true));
-    }, [year, month]),
-  );
-  return { data, error };
+  const load = useCallback(() => {
+    setError(false);
+    fetchMonth(year, month)
+      .then(setData)
+      .catch(() => setError(true));
+  }, [year, month]);
+  useFocusEffect(load);
+  return { data, error, reload: load };
 }
