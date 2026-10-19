@@ -104,7 +104,8 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
             <View style={styles.screen}>
               <SafeAreaInsetsContext.Provider value={PHONE_INSETS}>{children}</SafeAreaInsetsContext.Provider>
 
-              {/* Status bar, Dynamic Island and home indicator, drawn over the app. */}
+              {/* Status bar, Dynamic Island and home indicator, drawn over the app. Both
+                  bars are frosted glass, so scrolled content fades out beneath them. */}
               <View style={[styles.statusBar, { pointerEvents: 'none' }]}>
                 <Text style={styles.time}>9:41</Text>
                 <View style={styles.island} />
@@ -114,7 +115,9 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
                   <Ionicons name="battery-full" size={20} color={colors.ink} />
                 </View>
               </View>
-              <View style={[styles.homeIndicator, { pointerEvents: 'none' }]} />
+              <View style={[styles.bottomBar, { pointerEvents: 'none' }]}>
+                <View style={styles.homeIndicator} />
+              </View>
             </View>
           </View>
         </View>
@@ -265,6 +268,9 @@ function StoreBadge({ icon, small, big }: { icon: 'logo-apple' | 'logo-google-pl
   );
 }
 
+/** Translucent ivory with a blur behind it, like the iOS bars. */
+const FROSTED = { backgroundColor: 'rgba(251,250,247,0.72)', backdropFilter: 'blur(14px)' } as object;
+
 const styles = StyleSheet.create({
   page: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: GAP },
@@ -289,14 +295,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 28,
+    ...FROSTED,
   },
+  bottomBar: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 22, alignItems: 'center', justifyContent: 'center', ...FROSTED },
   time: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ink, width: 60 },
   island: { width: 104, height: 30, borderRadius: 15, backgroundColor: '#000000' },
   statusIcons: { flexDirection: 'row', alignItems: 'center', gap: 4, width: 60, justifyContent: 'flex-end' },
   homeIndicator: {
-    position: 'absolute',
-    bottom: 8,
-    alignSelf: 'center',
     width: 128,
     height: 5,
     borderRadius: 3,
