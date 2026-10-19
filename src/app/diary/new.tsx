@@ -155,7 +155,7 @@ export default function CheckinChat() {
             result={result}
             values={saved}
             onDone={() => router.back()}
-            onOpenStory={(id) => router.replace({ pathname: '/success/[id]', params: { id } })}
+            onOpenStory={(id) => router.replace({ pathname: '/untangle/[id]', params: { id } })}
             bottomInset={insets.bottom}
           />
         ) : (
@@ -285,8 +285,8 @@ function Summary({
               style={styles.success}>
               <Text style={styles.successEmoji}>🏆</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.successTitle}>Your plan worked: {story.title}</Text>
-                <Text style={styles.successBody}>Saved as a success story. Add your own words or share it.</Text>
+                <Text style={styles.successTitle}>Your plan is working: {story.title}</Text>
+                <Text style={styles.successBody}>Open it to mark it as solved, and share your story if you like.</Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color="#8A5A12" />
             </LinearGradient>

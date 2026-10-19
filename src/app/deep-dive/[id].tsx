@@ -46,7 +46,7 @@ export default function DeepDiveDetail() {
         {back}
         <EmptyState
           icon={<Ionicons name="alert-circle-outline" size={32} color={colors.textFaint} />}
-          title={error ? "Couldn't load this Deep Dive" : 'This Deep Dive no longer exists'}
+          title={error ? "Couldn't load this pattern" : 'This pattern no longer exists'}
         />
       </Screen>
     );

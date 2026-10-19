@@ -1,15 +1,16 @@
 /**
- * untangle-chat — one turn of the short Untangle conversation.
+ * untangle-chat — one turn of an Untangle conversation, in one of two modes.
  *
- * Request:  POST { messages: [...], intensity: 0–10 }  (the first user message is the problem)
- * Response: the AI's next question, streamed as plain text.
+ * Request:  POST { messages: [...], intensity: 0–10, mode: 'calm' | 'plan', sessionId? }
+ * Response: the AI's reply, streamed as plain text.
  *
- * The AI asks at most a few questions to understand the problem, using
- * everything the app knows about the user, then points them to "Make my plan".
+ * calm — "Calm now": calming, small tips, no plan.
+ * plan — "Stress solving": questions until "Make my plan"; with sessionId the
+ *        user is telling how their existing plan goes.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
-import { buildUntangleChatPrompt, loadUntangleContext } from '../_shared/untangle.ts';
+import { buildCalmPrompt, buildUntangleChatPrompt, loadPlanSession, loadUntangleContext } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseIntensity, parseMessages } from '../_shared/validation.ts';
 
 export default {
@@ -31,8 +32,13 @@ export default {
     let llm;
     try {
       const context = await loadUntangleContext(ctx.supabase, getEmbedder(), messages);
-      const answered = messages.filter((m) => m.role === 'user').length - 1;
-      system = buildUntangleChatPrompt(context, intensity, answered);
+      if ((body as { mode?: unknown })?.mode === 'calm') {
+        system = buildCalmPrompt(context, intensity);
+      } else {
+        const session = await loadPlanSession(ctx.supabase, body);
+        const answered = messages.filter((m) => m.role === 'user').length - 1;
+        system = buildUntangleChatPrompt(context, intensity, answered, session?.plan ?? null);
+      }
       llm = getLLM();
     } catch (err) {
       console.error('Preparing Untangle chat failed:', err);

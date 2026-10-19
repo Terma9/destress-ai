@@ -190,11 +190,11 @@ export default function Today() {
       </FadeIn>
 
       <FadeIn delay={330} style={{ marginTop: spacing.lg }}>
-        <PressableScale onPress={() => router.push('/untangle/new')} accessibilityLabel="Untangle something stressful">
+        <PressableScale onPress={() => router.push('/untangle/calm')} accessibilityLabel="Calm now">
           <LivingGradient colors={['#F3D5C4', '#E8B39A', '#F0C7B1']} style={styles.untangle} speed={7000}>
             <View style={{ flex: 1 }}>
               <Text style={styles.untangleTitle}>Stressed right now?</Text>
-              <Text style={styles.untangleSub}>Untangle it with a small plan</Text>
+              <Text style={styles.untangleSub}>Calm now: slow down together in a few minutes</Text>
             </View>
             <View style={styles.untangleIcon}>
               <Ionicons name="compass" size={22} color={fields.stress.ink} />

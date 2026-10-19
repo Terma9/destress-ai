@@ -12,15 +12,24 @@ import type { ChatMessage, Embedder } from './llm/index.ts';
 import { CRISIS_RULE } from './prompts.ts';
 import { formatConversation, relatedConversations, type RelatedConversation } from './rag.ts';
 
-export const MAX_QUESTIONS = 3;
-export const PROMPT_VERSION = 'untangle-v1';
+export const MAX_QUESTIONS = 5;
+export const PROMPT_VERSION = 'untangle-v2';
 
 export type UntangleContext = {
   name: string | null;
   memory: string;
   reflections: { question: string; answer: string }[];
   findings: string[];
-  pastSessions: { title: string; before: number; after: number | null; steps: { text: string; done: boolean }[] }[];
+  pastSessions: {
+    kind: 'calm' | 'plan';
+    title: string;
+    before: number;
+    after: number | null;
+    steps: { text: string; done: boolean }[];
+    outcome: string | null;
+  }[];
+  /** Their active stress-solving plans, so Calm now can point to one. */
+  activePlans: { title: string; problem: string }[];
   /** Past check-ins about similar situations, labelled E1, E2, … for citing. */
   related: (RelatedConversation & { ref: string })[];
 };
@@ -36,7 +45,7 @@ export async function loadUntangleContext(
     .map((m) => m.content)
     .join('\n');
 
-  const [profile, reflections, analysis, sessions, related] = await Promise.all([
+  const [profile, reflections, analysis, sessions, related, active] = await Promise.all([
     db.from('profiles').select('display_name, memory').maybeSingle(),
     db.from('reflections').select('question, answer').order('updated_at', { ascending: false }).limit(3),
     db
@@ -47,14 +56,20 @@ export async function loadUntangleContext(
       .maybeSingle(),
     db
       .from('untangle_sessions')
-      .select('title, intensity_before, intensity_after, plan')
-      .not('completed_at', 'is', null)
-      .order('created_at', { ascending: false })
-      .limit(5),
+      .select('kind, title, intensity_before, intensity_after, plan, outcome_note')
+      .order('updated_at', { ascending: false })
+      .limit(8),
     relatedConversations(db, embedder, userText, { max: 3 }).catch((err) => {
       console.error('Finding related check-ins failed:', err);
       return [];
     }),
+    db
+      .from('untangle_sessions')
+      .select('title, problem')
+      .eq('kind', 'plan')
+      .eq('status', 'active')
+      .order('updated_at', { ascending: false })
+      .limit(5),
   ]);
 
   type Dive = { title: string; findings: { text: string }[] };
@@ -66,11 +81,14 @@ export async function loadUntangleContext(
     reflections: reflections.data ?? [],
     findings: dives.flatMap((d) => d.findings.map((f) => `${d.title}: ${f.text}`)),
     pastSessions: (sessions.data ?? []).map((s) => ({
+      kind: s.kind,
       title: s.title,
       before: s.intensity_before,
       after: s.intensity_after,
-      steps: (s.plan as { steps: { text: string; done: boolean }[] }).steps,
+      steps: (s.plan as { steps: { text: string; done: boolean }[] } | null)?.steps ?? [],
+      outcome: s.outcome_note,
     })),
+    activePlans: active.data ?? [],
     related: related.map((r, i) => ({ ...r, ref: `E${i + 1}` })),
   };
 }
@@ -79,7 +97,8 @@ function formatContext(ctx: UntangleContext): string {
   const list = (items: string[], empty: string) => (items.length ? items.map((i) => `- ${i}`).join('\n') : empty);
   const sessions = ctx.pastSessions.map((s) => {
     const steps = s.steps.map((st) => `${st.done ? '✓' : '✗'} ${st.text}`).join('; ');
-    return `"${s.title}": intensity ${s.before} → ${s.after ?? '?'}/10. Steps: ${steps}`;
+    const what = s.kind === 'calm' ? 'Calm now session' : `Plan. Steps: ${steps || '–'}`;
+    return `"${s.title}": intensity ${s.before} → ${s.after ?? '?'}/10. ${what}${s.outcome ? ` · what helped: ${s.outcome}` : ''}`;
   });
   const related = ctx.related.map(
     (r) => `### [${r.ref}] ${r.created_at.slice(0, 10)} · ${r.title ?? 'Check-in'}\nMatched topic: ${r.topic}\n${formatConversation(r.messages, 4000)}`,
@@ -88,13 +107,13 @@ function formatContext(ctx: UntangleContext): string {
   return `## What you know about ${ctx.name || 'the user'}
 ${ctx.memory || 'Nothing yet.'}
 
-## Patterns from their Deep Dives
+## Patterns from their Weekly Insights
 ${list(ctx.findings, 'None yet.')}
 
 ## Their answers to reflection questions
 ${list(ctx.reflections.map((r) => `Q: ${r.question} A: ${r.answer}`), 'None yet.')}
 
-## Earlier Untangle sessions and how they worked out (✓ = step done)
+## Earlier Calm now sessions and plans, and how they worked out (✓ = step done)
 ${list(sessions, 'None yet.')}
 
 ## Related past check-ins (found by meaning)
@@ -102,18 +121,73 @@ Lines from "Destress AI" are your own earlier replies, not facts about the user.
 ${related.length ? related.join('\n\n') : 'None found.'}`;
 }
 
-export function buildUntangleChatPrompt(ctx: UntangleContext, intensity: number, answered: number): string {
+/** Short text of a plan for the prompts. */
+export function formatPlan(plan: Plan): string {
+  const steps = plan.steps.map((s, i) => `${i + 1}. ${s.done ? '✓ ' : ''}${s.text}`).join('\n');
+  return `${plan.approach ? `Approach: ${plan.approach}\n` : ''}${steps}`;
+}
+
+/** "Calm now": calm the user down during this conversation. Small tips, no plan. */
+export function buildCalmPrompt(ctx: UntangleContext, intensity: number): string {
+  const plans = ctx.activePlans.map((p) => `- "${p.title}": ${p.problem}`).join('\n');
+  return `You are Destress AI in "Calm now": the user is stressed right now (${intensity}/10 when they started). Your only goal is that they feel calmer by the end of this short conversation.
+
+## How to help
+- Start by acknowledging what they feel, in their words, in one sentence. Stay calm and steady, like a friend who doesn't panic when they do.
+- Keep every reply to 1–3 short sentences. One thing at a time.
+- ${intensity >= 6 ? 'Their stress is high: early on, guide one short grounding exercise step by step (e.g. breathing out slowly, longer than in, three times; or naming 3 things they can see). Give one instruction, then wait for them.' : 'If it fits, offer one short grounding exercise, step by step.'}
+- Then help them put the moment in perspective: what is actually in front of them right now, what can wait.
+- You may give small, practical tips (at most one per reply), ideally ones that helped them before (see below). No plans, no to-do lists, no problem-solving sessions.
+- If what they describe matches one of their active plans below, mention that plan once by its title (they can open it later under "My plans"). If it sounds like something that keeps coming back and has no plan, you may suggest once, near the end, to work on it later with "Stress solving".
+- When they sound calmer, say so gently and invite them to tap "I feel calmer".
+- Reply in the language the user writes in.
+
+## Their active plans
+${plans || 'None.'}
+
+## Boundaries
+- You are not a therapist and don't diagnose.
+${CRISIS_RULE}
+
+${formatContext(ctx)}`;
+}
+
+/** "Stress solving": understand a recurring stressor (before the first plan) or hear how the plan goes (later). */
+export function buildUntangleChatPrompt(
+  ctx: UntangleContext,
+  intensity: number,
+  answered: number,
+  currentPlan: Plan | null = null,
+): string {
+  if (currentPlan) {
+    return `You are Destress AI in "Stress solving". The user is coming back to their plan for a stressor to tell you how it's going. Their plan right now:
+${formatPlan(currentPlan)}
+
+## How to talk
+- Be warm and curious; 1–3 short sentences per reply, at most one question.
+- Find out what worked, what didn't, and what changed. Celebrate progress specifically.
+- If the approach should change (a step doesn't fit, something new came up), say so briefly and suggest tapping "Update my plan". Don't write the new plan in the chat.
+- If the stressor sounds solved, say so and suggest tapping "Mark as solved".
+- Reply in the language the user writes in.
+
+## Boundaries
+- You are not a therapist and don't diagnose.
+${CRISIS_RULE}
+
+${formatContext(ctx)}`;
+  }
+
   const wrapUp =
     answered >= MAX_QUESTIONS - 1
       ? 'You have asked enough questions. Briefly reflect what you understood and tell them to tap "Make my plan".'
-      : `Ask your next question. You may ask ${MAX_QUESTIONS - answered} more at most; if the picture is already clear, tell them to tap "Make my plan" instead.`;
+      : `Ask your next question. You may ask ${MAX_QUESTIONS - answered} more at most; if the picture is already clear (usually after 3), tell them to tap "Make my plan" instead.`;
 
-  return `You are Destress AI, helping the user untangle something that is stressing them right now. Their stress intensity is ${intensity}/10.
+  return `You are Destress AI in "Stress solving": together with the user you work out a well-founded plan for something that keeps stressing them. It weighs on them ${intensity}/10.
 
-## Your job in this short conversation
-- Understand the problem just well enough to make a small, concrete plan afterwards: what exactly is going on, by when, what is in their control, what they have already tried.
-- Ask one short question at a time, 1–2 calm, warm sentences per reply. Don't give the plan or a list of tips yet.
-- Use what you know about them (below) to ask sharper questions, e.g. about something that helped or made it worse before.
+## Your job in this conversation
+- Understand the stressor well enough for a plan that really fits them: when and how often it happens, what triggers it, what is in their control, what they have tried and what helped or made it worse.
+- Connect it to what you know (patterns from their Weekly Insights, older check-ins, earlier plans), e.g. "Last month you mentioned that late study sessions made it worse. Is that still true?"
+- Ask one question at a time, 1–3 warm sentences per reply. Don't give the plan or a list of tips yet.
 - Reply in the language the user writes in.
 - They have answered ${answered} of your questions so far. ${wrapUp}
 
@@ -124,11 +198,17 @@ ${CRISIS_RULE}
 ${formatContext(ctx)}`;
 }
 
-export function buildPlanPrompt(ctx: UntangleContext, intensity: number): string {
-  return `You turn a short conversation about an acute stressor into a small, concrete plan for the user of Destress AI. Their stress intensity is ${intensity}/10.
-
+export function buildPlanPrompt(ctx: UntangleContext, intensity: number, currentPlan: Plan | null = null): string {
+  const update = currentPlan
+    ? `\nThis updates their existing plan. They told you how it went in the latest messages: keep what worked (and its done marks in mind), change what didn't. Their plan so far:\n${formatPlan(currentPlan)}\n`
+    : '';
+  return `You turn a conversation about something that keeps stressing the user of Destress AI into a well-founded, actionable plan. It weighs on them ${intensity}/10.
+${update}
 Rules:
-- steps: 1 to 3 steps, specific to their situation. The first step must be doable right now in 10 minutes or less. Build on what helped them before and on steps that lowered their intensity in earlier Untangle sessions; avoid what made things worse.
+- approach: 2–3 sentences: the idea behind the plan and why it fits this person, based on what you know about them (their patterns, check-ins, earlier plans). This is the argument for the plan.
+- steps: 2 to 4 concrete steps (what, when, how often), specific to their situation, small enough to start this week. Small experiments and habits are good. Build on what helped them before; avoid what made things worse.
+- watch_for: one sentence: how they will notice that the plan is working.
+- minutes: roughly how long one step takes each time.
 - lessons: up to 3 things this user's past check-ins show about similar situations: what helped (kind "helped") or what made it worse (kind "worse"). Each must cite at least one related past check-in by its label (e.g. "E2"), and only state what the user said or experienced there, never a suggestion Destress AI made. Leave it empty if nothing fits.
 - note: one short, kind sentence about what is not in their control or what they can let go of.
 - problem: one sentence restating the problem, addressed to them ("You…"). title: 2–6 words.
@@ -141,6 +221,8 @@ ${formatContext(ctx)}`;
 export type PlanOutput = {
   title: string;
   problem: string;
+  approach: string;
+  watch_for: string;
   lessons: { text: string; kind: 'helped' | 'worse'; evidence: string[] }[];
   steps: { text: string; minutes: number }[];
   note: string;
@@ -150,10 +232,12 @@ export type PlanOutput = {
 export const PLAN_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['title', 'problem', 'lessons', 'steps', 'note', 'risk_level'],
+  required: ['title', 'problem', 'approach', 'lessons', 'steps', 'watch_for', 'note', 'risk_level'],
   properties: {
     title: { type: 'string', description: '2–6 words, e.g. "Statistics resit tomorrow".' },
     problem: { type: 'string', description: 'One sentence, addressed to the user.' },
+    approach: { type: 'string', description: 'The idea behind the plan and why it fits them, 2–3 sentences.' },
+    watch_for: { type: 'string', description: 'How they will notice it works, one sentence.' },
     lessons: {
       type: 'array',
       items: {
@@ -185,6 +269,8 @@ export const PLAN_SCHEMA = {
 } as const;
 
 export type Plan = {
+  approach?: string;
+  watch_for?: string;
   /** What past check-ins show; stored as `lessons` in untangle_sessions.plan. evidence = check-in ids. */
   lessons: { text: string; kind: 'helped' | 'worse'; evidence: string[] }[];
   steps: { text: string; minutes: number; done: boolean }[];
@@ -202,14 +288,17 @@ export function validatePlan(output: PlanOutput, related: UntangleContext['relat
   });
   const steps = output.steps
     .filter((s) => s.text.trim())
-    .slice(0, 3)
+    .slice(0, 4)
     .map((s) => ({ text: s.text.trim(), minutes: Math.max(1, Math.min(240, Math.round(s.minutes) || 10)), done: false }));
   if (!steps.length) return null;
-  return { lessons, steps, note: output.note.trim() };
+  return {
+    approach: output.approach.trim(),
+    watch_for: output.watch_for.trim(),
+    lessons,
+    steps,
+    note: output.note.trim(),
+  };
 }
-
-/** How long after an Untangle plan the check-in still asks how it went. */
-const FOLLOW_UP_DAYS = 7;
 
 export type OpenPlan = {
   id: string;
@@ -220,23 +309,23 @@ export type OpenPlan = {
   steps: { text: string; done: boolean }[];
 };
 
-/** Recent Untangle plans whose outcome isn't known yet, newest first. */
+/** Active stress-solving plans the check-in asks about, most recently touched first. */
 export async function fetchOpenPlans(db: SupabaseClient): Promise<OpenPlan[]> {
-  const since = new Date(Date.now() - FOLLOW_UP_DAYS * 86_400_000).toISOString();
   const { data, error } = await db
     .from('untangle_sessions')
     .select('id, title, problem, intensity_before, intensity_after, plan')
-    .is('outcome', null)
-    .gte('created_at', since)
-    .order('created_at', { ascending: false })
+    .eq('kind', 'plan')
+    .eq('status', 'active')
+    .order('updated_at', { ascending: false })
     .limit(3);
   if (error) throw error;
   return (data ?? []).map(({ plan, ...s }) => ({ ...s, steps: (plan as Plan).steps }));
 }
 
 /**
- * Saves how open plans turned out (from the check-in extraction). Plans
- * that worked, fully or partly, become a private success story; returns those.
+ * Saves how active plans are going (from the check-in extraction). Returns
+ * the plans that worked, so the check-in can suggest marking them solved;
+ * the success story is only created when the user marks a plan solved.
  */
 export async function recordPlanOutcomes(
   db: SupabaseClient,
@@ -256,32 +345,32 @@ export async function recordPlanOutcomes(
         outcome: o.outcome,
         outcome_note: o.what_helped.trim() || null,
         outcome_at: new Date().toISOString(),
-        // The "how intense is it now" answer comes from this check-in, not from the plan screen.
-        ...(o.intensity_after !== null && plan.intensity_after === null
-          ? { intensity_after: o.intensity_after, completed_at: new Date().toISOString() }
-          : {}),
+        updated_at: new Date().toISOString(),
+        // How much it weighs on them now comes from the check-in.
+        ...(o.intensity_after !== null ? { intensity_after: o.intensity_after } : {}),
       })
       .eq('id', plan.id);
     if (error) throw error;
-
-    if (o.outcome === 'worked' || o.outcome === 'partly') {
-      const doneSteps = plan.steps.filter((s) => s.done).map((s) => s.text);
-      const { data, error: storyError } = await db
-        .from('success_stories')
-        .insert({
-          session_id: plan.id,
-          theme: o.theme,
-          title: plan.title,
-          situation: plan.problem,
-          solution: o.what_helped.trim() || doneSteps.join(' ') || plan.steps[0]?.text || '',
-          intensity_before: plan.intensity_before,
-          intensity_after: o.intensity_after ?? plan.intensity_after,
-        })
-        .select('id, title')
-        .single();
-      if (storyError) throw storyError;
-      successes.push(data);
-    }
+    if (o.outcome === 'worked') successes.push({ id: plan.id, title: plan.title });
   }
   return successes;
+}
+
+/**
+ * The plan the user is coming back to, when the request carries its
+ * `sessionId` (RLS: only their own). Null when starting a new one.
+ */
+export async function loadPlanSession(
+  db: SupabaseClient,
+  body: unknown,
+): Promise<{ id: string; plan: Plan; plan_history: unknown[]; intensity_before: number } | null> {
+  const id = (body as { sessionId?: unknown })?.sessionId;
+  if (typeof id !== 'string' || !/^[0-9a-f-]{36}$/i.test(id)) return null;
+  const { data } = await db
+    .from('untangle_sessions')
+    .select('id, plan, plan_history, intensity_before')
+    .eq('id', id)
+    .eq('kind', 'plan')
+    .maybeSingle();
+  return data ?? null;
 }

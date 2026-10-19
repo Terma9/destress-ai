@@ -114,18 +114,22 @@ export async function streamCheckinReply(
   return readStream(await post('checkin-chat', { messages, resume: options.resume === true }), onText);
 }
 
-/** Streams the AI's next Untangle question. The first message is the user's problem. */
+/**
+ * Streams the AI's next Untangle reply. mode 'calm' = Calm now; 'plan' =
+ * Stress solving (with sessionId: talking about an existing plan).
+ */
 export async function streamUntangleReply(
   messages: ChatMessage[],
   intensity: number,
   onText: (textSoFar: string) => void,
+  options: { mode: 'calm' | 'plan'; sessionId?: string } = { mode: 'plan' },
 ): Promise<string> {
-  return readStream(await post('untangle-chat', { messages, intensity }), onText);
+  return readStream(await post('untangle-chat', { messages, intensity, ...options }), onText);
 }
 
-/** Turns the Untangle conversation into a saved plan; returns the session id. */
-export async function createUntanglePlan(messages: ChatMessage[], intensity: number): Promise<string> {
-  const res = await post('untangle-plan', { messages, intensity });
+/** Makes a plan from the conversation, or updates the plan `sessionId`; returns the session id. */
+export async function createUntanglePlan(messages: ChatMessage[], intensity: number, sessionId?: string): Promise<string> {
+  const res = await post('untangle-plan', { messages, intensity, sessionId });
   return ((await res.json()) as { id: string }).id;
 }
 

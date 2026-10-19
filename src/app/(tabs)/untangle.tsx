@@ -1,127 +1,179 @@
+/**
+ * Untangle: two ways to deal with stress.
+ *   Calm now       — stressed right now? A few minutes to slow down together.
+ *   Stress solving — something keeps coming back? A plan that fits you.
+ * Below: "My plans" (one living plan per stressor), solved plans, and
+ * success stories (which can be shared in the community).
+ */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { InlineLoader } from '@/components/brand';
-import { Card, EmptyState, GradientCard, Screen, SectionHeader } from '@/components/ui';
-import { intensityColor } from '@/components/untangle';
+import { StyleSheet, Text, View } from 'react-native';
+import { InlineLoader, Logo } from '@/components/brand';
+import { FadeIn, LivingGradient, PressableScale } from '@/components/motion';
+import { Card, Screen } from '@/components/ui';
 import { THEME_LABELS, useMyStories } from '@/data/community';
-import { useUntangleSessions } from '@/data/untangle';
-import { colors, font, gradients, radii, spacing } from '@/theme';
+import { type UntangleSession, useUntangleSessions } from '@/data/untangle';
+import { colors, fields, font, fontFamily, radii, shadow, spacing } from '@/theme';
+
+const short = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
 
 export default function UntangleHome() {
   const router = useRouter();
   const { sessions, error } = useUntangleSessions();
   const stories = useMyStories();
 
+  const plans = (sessions ?? []).filter((s) => s.kind === 'plan');
+  const active = plans.filter((s) => s.status === 'active');
+  const solved = plans.filter((s) => s.status === 'solved');
+  const calm = (sessions ?? []).filter((s) => s.kind === 'calm' && s.intensity_after !== null);
+  const avgDrop = calm.length
+    ? Math.round((calm.reduce((sum, s) => sum + (s.intensity_before - s.intensity_after!), 0) / calm.length) * 10) / 10
+    : null;
+
   return (
     <Screen>
       <Text style={styles.title}>Untangle</Text>
-      <Text style={styles.sub}>Work through what's stressing you right now</Text>
+      <Text style={styles.sub}>Calm stress in the moment, or solve what keeps coming back</Text>
 
-      <GradientCard colors={gradients.aiAnalysis} style={{ marginTop: spacing.lg }}>
-        <View style={styles.heroHead}>
-          <Ionicons name="compass-outline" size={18} color={colors.white} />
-          <Text style={styles.heroTitle}>Stressed right now?</Text>
-        </View>
-        <Text style={styles.heroBody}>
-          Tell me what's going on. I'll ask a few questions and make a small plan with you, based on what has helped
-          you before.
-        </Text>
-        <Pressable style={styles.heroBtn} onPress={() => router.push('/untangle/new')}>
-          <Text style={styles.heroBtnText}>Untangle it</Text>
-        </Pressable>
-      </GradientCard>
-
-      {stories && stories.length > 0 && (
-        <>
-          <SectionHeader title="What worked for you" />
-          {stories.map((st) => (
-            <Card
-              key={st.id}
-              style={[{ marginBottom: spacing.md }, styles.story]}
-              onPress={() => router.push({ pathname: '/success/[id]', params: { id: st.id } })}>
-              <View style={styles.row}>
-                <Text style={{ fontSize: 22 }}>🏆</Text>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.cardTitle}>{st.title}</Text>
-                  <Text style={styles.meta}>
-                    {THEME_LABELS[st.theme] ?? st.theme} · {st.status === 'published' ? 'Shared in the community' : 'Private'}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+      <FadeIn style={{ marginTop: spacing.lg, gap: spacing.md }}>
+        <PressableScale onPress={() => router.push('/untangle/calm')} accessibilityLabel="Calm now">
+          <LivingGradient colors={[fields.stress.from, fields.stress.to, fields.stress.from]} style={styles.mode} speed={9000}>
+            <View style={styles.modeHead}>
+              <View style={[styles.modeIcon, { backgroundColor: 'rgba(255,255,255,0.7)' }]}>
+                <Ionicons name="leaf-outline" size={18} color={fields.stress.deep} />
               </View>
-            </Card>
-          ))}
-        </>
+              <Text style={[styles.modeTitle, { color: fields.stress.ink }]}>Calm now</Text>
+              <Ionicons name="arrow-forward" size={18} color={fields.stress.ink} />
+            </View>
+            <Text style={[styles.modeText, { color: fields.stress.ink }]}>
+              stressed right now? slow down together in a few minutes, with small tips that helped you before
+            </Text>
+            {avgDrop !== null && (
+              <Text style={[styles.modeStat, { color: fields.stress.deep }]}>
+                {calm.length}× used · stress {avgDrop > 0 ? `−${avgDrop}` : avgDrop} on average
+              </Text>
+            )}
+          </LivingGradient>
+        </PressableScale>
+
+        <PressableScale onPress={() => router.push('/untangle/new')} accessibilityLabel="Stress solving">
+          <LivingGradient colors={[fields.sleep.from, fields.sleep.to, fields.sleep.from]} style={styles.mode} speed={11000}>
+            <View style={styles.modeHead}>
+              <View style={[styles.modeIcon, { backgroundColor: 'rgba(255,255,255,0.7)' }]}>
+                <Ionicons name="git-branch-outline" size={18} color={fields.sleep.deep} />
+              </View>
+              <Text style={[styles.modeTitle, { color: fields.sleep.ink }]}>Stress solving</Text>
+              <Ionicons name="arrow-forward" size={18} color={fields.sleep.ink} />
+            </View>
+            <Text style={[styles.modeText, { color: fields.sleep.ink }]}>
+              something keeps stressing you? work out a plan that fits you, based on your check-ins and patterns
+            </Text>
+          </LivingGradient>
+        </PressableScale>
+      </FadeIn>
+
+      <FadeIn delay={150} style={{ marginTop: spacing.xl }}>
+        <Text style={styles.label}>MY PLANS</Text>
+        <Text style={styles.sectionHint}>one plan per stressor · tell how it goes and it grows with you</Text>
+        {error ? (
+          <Text style={styles.note}>Couldn't load your plans. Check your connection.</Text>
+        ) : sessions === null ? (
+          <InlineLoader />
+        ) : active.length === 0 ? (
+          <Card style={styles.empty}>
+            <Logo size={40} />
+            <Text style={styles.note}>No plans yet. Start with Stress solving when something keeps coming back.</Text>
+          </Card>
+        ) : (
+          <View style={{ gap: spacing.sm }}>
+            {active.map((s) => (
+              <PlanCard key={s.id} session={s} onPress={() => router.push({ pathname: '/untangle/[id]', params: { id: s.id } })} />
+            ))}
+          </View>
+        )}
+      </FadeIn>
+
+      {solved.length > 0 && (
+        <FadeIn delay={220} style={{ marginTop: spacing.xl }}>
+          <Text style={styles.label}>SOLVED</Text>
+          <View style={{ gap: spacing.sm }}>
+            {solved.map((s) => (
+              <PlanCard key={s.id} session={s} onPress={() => router.push({ pathname: '/untangle/[id]', params: { id: s.id } })} />
+            ))}
+          </View>
+        </FadeIn>
       )}
 
-      <SectionHeader title="Your plans" />
-      {error ? (
-        <EmptyState
-          icon={<Ionicons name="cloud-offline-outline" size={32} color={colors.textFaint} />}
-          title="Couldn't load your plans"
-          caption="Check your connection and come back to this tab."
-        />
-      ) : sessions === null ? (
-        <InlineLoader />
-      ) : sessions.length === 0 ? (
-        <EmptyState
-          icon={<Ionicons name="compass-outline" size={32} color={colors.textFaint} />}
-          title="No plans yet"
-          caption="Your plans and how much they helped will show up here."
-        />
-      ) : (
-        sessions.map((s) => (
-          <Card
-            key={s.id}
-            style={{ marginBottom: spacing.md }}
-            onPress={() => router.push({ pathname: '/untangle/[id]', params: { id: s.id } })}>
-            <View style={styles.row}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{s.title}</Text>
-                <Text style={styles.meta}>
-                  {new Date(s.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' })} ·{' '}
-                  {s.plan.steps.filter((st) => st.done).length} of {s.plan.steps.length} steps done
-                </Text>
-              </View>
-              <Text style={styles.scores}>
-                <Text style={{ color: intensityColor(s.intensity_before) }}>{s.intensity_before}</Text>
-                {s.intensity_after !== null ? (
-                  <>
-                    {' → '}
-                    <Text style={{ color: intensityColor(s.intensity_after) }}>{s.intensity_after}</Text>
-                  </>
-                ) : null}
-              </Text>
-              <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
-            </View>
-            {s.intensity_after === null && <Text style={styles.open}>How did it go? Tap to rate it.</Text>}
-          </Card>
-        ))
+      {stories && stories.length > 0 && (
+        <FadeIn delay={280} style={{ marginTop: spacing.xl }}>
+          <Text style={styles.label}>YOUR SUCCESS STORIES</Text>
+          <Text style={styles.sectionHint}>share them in the community if you like</Text>
+          <View style={{ gap: spacing.sm }}>
+            {stories.map((st) => (
+              <Card key={st.id} onPress={() => router.push({ pathname: '/success/[id]', params: { id: st.id } })}>
+                <View style={styles.row}>
+                  <Ionicons name="trophy-outline" size={18} color={fields.mood.deep} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{st.title}</Text>
+                    <Text style={styles.meta}>
+                      {THEME_LABELS[st.theme] ?? st.theme} · {st.status === 'published' ? 'Shared in the community' : 'Private'}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+                </View>
+              </Card>
+            ))}
+          </View>
+        </FadeIn>
       )}
     </Screen>
   );
 }
 
+function PlanCard({ session: s, onPress }: { session: UntangleSession; onPress: () => void }) {
+  const steps = s.plan?.steps ?? [];
+  const done = steps.filter((st) => st.done).length;
+  return (
+    <Card onPress={onPress}>
+      <View style={styles.row}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{s.title}</Text>
+          <Text style={styles.cardText} numberOfLines={2}>
+            {s.problem}
+          </Text>
+          <View style={styles.progress}>
+            {steps.map((st, i) => (
+              <View key={i} style={[styles.bar, st.done && { backgroundColor: fields.mood.strong }]} />
+            ))}
+          </View>
+          <Text style={styles.meta}>
+            {s.status === 'solved' ? 'Solved' : `${done} of ${steps.length} steps`} · updated {short(s.updated_at)}
+            {s.plan_history.length ? ` · version ${s.plan_history.length + 1}` : ''}
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />
+      </View>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
-  title: { ...font.h1, color: colors.text },
+  title: { ...font.h1, color: colors.ink },
   sub: { ...font.body, color: colors.textMuted, marginTop: 2 },
-  heroHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
-  heroTitle: { ...font.title, color: colors.white },
-  heroBody: { ...font.body, color: 'rgba(255,255,255,0.92)', lineHeight: 20 },
-  heroBtn: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.white,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-    marginTop: spacing.md,
-  },
-  heroBtnText: { color: colors.purple, fontWeight: '700', fontSize: 14 },
+  mode: { borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...shadow.soft },
+  modeHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  modeIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  modeTitle: { fontFamily: fontFamily.bold, fontSize: 18, flex: 1 },
+  modeText: { ...font.small, lineHeight: 18, marginTop: spacing.sm, opacity: 0.85 },
+  modeStat: { fontFamily: fontFamily.semibold, fontSize: 12, marginTop: spacing.sm },
+  label: { ...font.label, color: colors.textMuted },
+  sectionHint: { ...font.small, color: colors.textFaint, marginTop: 2, marginBottom: spacing.md },
+  note: { ...font.body, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  empty: { alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  cardTitle: { ...font.title, color: colors.text },
-  meta: { ...font.small, color: colors.textFaint, marginTop: 2 },
-  scores: { fontSize: 18, fontWeight: '700', color: colors.textFaint },
-  story: { backgroundColor: '#FFFBEB', borderWidth: 1, borderColor: '#FDE68A' },
-  open: { ...font.small, color: colors.purple, fontWeight: '600', marginTop: spacing.sm },
+  cardTitle: { ...font.title, color: colors.ink },
+  cardText: { ...font.small, color: colors.inkSoft, marginTop: 2, lineHeight: 18 },
+  progress: { flexDirection: 'row', gap: 4, marginTop: spacing.sm },
+  bar: { flex: 1, height: 5, borderRadius: 3, backgroundColor: colors.sand },
+  meta: { ...font.tiny, color: colors.textMuted, marginTop: 6 },
 });

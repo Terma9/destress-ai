@@ -101,8 +101,8 @@ ${reflections}
 ## This week's question from their Weekly Insights
 ${ctx.weeklyQuestion ? `"${ctx.weeklyQuestion}" If it fits naturally, you may touch on it once this week. Never force it.` : 'None.'}
 
-## Untangle plans to follow up on
-Plans they made recently for an acute stressor. Early in the conversation, ask once, naturally, how it turned out (e.g. "How did the presentation go?") and what made the difference. Don't push if they don't want to talk about it.
+## Their active stress-solving plans
+Plans they made for something that keeps stressing them. If one fits today's conversation, or you haven't heard about it for a while, ask once, naturally, how it's going and what made the difference. Not every day, and don't push if they don't want to talk about it.
 ${openPlans}
 
 ## Older conversations that match what they just said (found by meaning)
