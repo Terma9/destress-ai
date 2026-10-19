@@ -6,9 +6,8 @@
  * Response: { inserted } — the number of check-ins added.
  *
  * Loads every feature's data: check-ins + calendar values, the AI's memory,
- * last Weekly Insights (this week's are then generated live by the app),
- * a Calm now session, two Stress solving plans (one with an earlier version,
- * one solved) and the solved plan's story in the community with comments.
+ * last week's Weekly Insights, a Calm now session, two Stress solving plans
+ * (one active, one solved) and the solved plan's story in the community with comments.
  * Only works on accounts without check-ins, so real entries never mix with demo data.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
@@ -108,7 +107,7 @@ export default {
       .update({ display_name: demo.name, memory: demo.memory, updated_at: new Date().toISOString() })
       .eq('id', userId);
 
-    // ─── Weekly Insights from the end of week 2 ───────────────────────────
+    // ─── Weekly Insights from the end of week 4 (fixed, so they stay simple) ─────────────────────────
     const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
     const weekOf = (w: number) => {
       const cs = demo.checkins.filter((c) => c.week === w);
@@ -146,9 +145,10 @@ export default {
 
     // ─── Untangle: Calm now + two plans ───────────────────────────────────
     const calm = demo.calmSession;
-    const sun = demo.sundayPlan;
-    const pres = demo.presentationPlan;
-    const planOf = (p: typeof sun.v2) => ({ ...p, lessons: withIds(p.lessons) });
+    const boss = demo.bossPlan;
+    const sleep = demo.sleepPlan;
+    const planOf = (p: typeof boss.plan) => ({ ...p, lessons: withIds(p.lessons) });
+    const solvedAt = at(sleep.solvedWeek, sleep.solvedWeekday);
     const { data: sessions, error: untangleError } = await db
       .from('untangle_sessions')
       .insert([
@@ -165,43 +165,43 @@ export default {
           outcome: null,
           outcome_note: null,
           outcome_at: null,
-          created_at: at(calm.week, calm.weekday, '20:15:00'),
-          updated_at: at(calm.week, calm.weekday, '20:30:00'),
-          completed_at: at(calm.week, calm.weekday, '20:30:00'),
+          created_at: at(calm.week, calm.weekday, '15:15:00'),
+          updated_at: at(calm.week, calm.weekday, '15:30:00'),
+          completed_at: at(calm.week, calm.weekday, '15:30:00'),
         },
         {
           kind: 'plan',
           status: 'active',
-          title: sun.title,
-          problem: sun.problem,
-          messages: sun.messages,
-          intensity_before: sun.before,
-          intensity_after: sun.after,
-          plan: planOf(sun.v2),
-          plan_history: [{ plan: planOf(sun.v1), replaced_at: at(sun.updatedWeek, sun.updatedWeekday, '20:00:00') }],
+          title: boss.title,
+          problem: boss.problem,
+          messages: boss.messages,
+          intensity_before: boss.before,
+          intensity_after: boss.after,
+          plan: planOf(boss.plan),
+          plan_history: [],
           outcome: 'partly',
-          outcome_note: 'The Friday shutdown worked: the first calm Sunday in a month.',
-          outcome_at: at(4, 7, '19:30:00'),
+          outcome_note: 'Markus agreed to the 4 pm rule. Late tasks now usually wait until the morning.',
+          outcome_at: at(4, 2, '20:00:00'),
           completed_at: null,
-          created_at: at(sun.week, sun.weekday, '20:00:00'),
-          updated_at: at(4, 7, '19:30:00'),
+          created_at: at(boss.week, boss.weekday, '21:00:00'),
+          updated_at: at(4, 2, '20:00:00'),
         },
         {
           kind: 'plan',
           status: 'solved',
-          title: pres.title,
-          problem: pres.problem,
-          messages: pres.messages,
-          intensity_before: pres.before,
-          intensity_after: pres.after,
-          plan: planOf(pres.plan),
+          title: sleep.title,
+          problem: sleep.problem,
+          messages: sleep.messages,
+          intensity_before: sleep.before,
+          intensity_after: sleep.after,
+          plan: planOf(sleep.plan),
           plan_history: [],
           outcome: 'worked',
-          outcome_note: 'Preparing answers to the questions I feared, and rehearsing out loud.',
-          outcome_at: at(pres.week, pres.solvedWeekday),
-          created_at: at(pres.week, pres.weekday, '20:00:00'),
-          updated_at: at(pres.week, pres.solvedWeekday),
-          completed_at: at(pres.week, pres.solvedWeekday),
+          outcome_note: 'Walks after work and the phone outside the bedroom. I now sleep 7 to 8 hours.',
+          outcome_at: solvedAt,
+          created_at: at(sleep.week, sleep.weekday, '20:00:00'),
+          updated_at: solvedAt,
+          completed_at: solvedAt,
         },
       ])
       .select('id, title');
@@ -209,26 +209,26 @@ export default {
 
     // ─── The solved plan's story, published, with comments ────────────────
     // Publishing needs the service role (users can't set published themselves).
-    const presSession = sessions?.find((s) => s.title === pres.title);
+    const sleepSession = sessions?.find((s) => s.title === sleep.title);
     try {
       const embedder = getEmbedder();
       const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
         auth: { persistSession: false },
       });
-      const story = pres.story;
+      const story = sleep.story;
       const [vector] = await embedder.embed([storyDocument({ title: story.title, body: story.body })]);
-      const publishedAt = at(pres.week, 6, '11:00:00');
+      const publishedAt = at(sleep.solvedWeek, 6, '11:00:00');
       // Like the real flow: the user creates the private story, the server publishes it.
       const { data: saved, error: storyError } = await db
         .from('success_stories')
         .insert({
-          session_id: presSession?.id ?? null,
-          theme: 'work',
-          title: pres.title,
-          situation: pres.problem,
-          solution: pres.plan.steps.map((s) => s.text).join(' '),
-          intensity_before: pres.before,
-          intensity_after: pres.after,
+          session_id: sleepSession?.id ?? null,
+          theme: 'sleep',
+          title: sleep.title,
+          situation: sleep.problem,
+          solution: sleep.plan.steps.map((s) => s.text).join(' '),
+          intensity_before: sleep.before,
+          intensity_after: sleep.after,
         })
         .select('id')
         .single();
@@ -241,7 +241,7 @@ export default {
           public_title: story.title,
           public_body: story.body,
           published_at: publishedAt,
-          created_at: at(pres.week, pres.solvedWeekday),
+          created_at: solvedAt,
           embedding: JSON.stringify(vector),
         })
         .eq('id', saved.id)
