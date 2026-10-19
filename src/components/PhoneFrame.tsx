@@ -1,11 +1,11 @@
 /**
  * The web demo on a laptop: instead of stretching the app across the screen,
- * shows it in a realistic phone (Dynamic Island, status bar, side buttons).
- * Two calm columns: on the left only the essentials (what it is, a button
- * that loads the demo at any time, a QR code for the phone, who built it),
- * with "How it works" sliding in on request; on the right the phone, which
- * stays usable while reading. On phones and in the native app it renders the
- * app unchanged.
+ * shows it in a realistic phone (Dynamic Island, status bar, side buttons),
+ * always in the centre. Left: what it is and what to do (headline, pitch,
+ * "How it works" sliding in on request, a button that loads the demo at any
+ * time). Right: where to get it (QR code for the phone, app stores coming
+ * soon, who built it). Both columns have the same width, so the phone stays
+ * centred. On phones and in the native app it renders the app unchanged.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,11 +21,13 @@ import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, tints } from '@/theme';
 
 const MIN_DESKTOP_WIDTH = 700;
-/** From this width there is room for the text column next to the phone. */
-const WITH_INTRO_WIDTH = 960;
 const MAX_HEIGHT = 860;
 const RATIO = 0.47; // width / height of a modern phone
 const BEZEL = 11;
+const GAP = 80;
+const MAX_COLUMN = 330;
+/** Narrower than this, the side columns are left out and only the phone shows. */
+const MIN_COLUMN = 250;
 /** Space the app keeps free for the status bar and the home indicator, like on a real phone. */
 const PHONE_INSETS = { top: 50, bottom: 22, left: 0, right: 0 };
 const LINKEDIN = 'https://www.linkedin.com/in/simon--kraus/';
@@ -77,6 +79,8 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
 
   const phoneHeight = Math.min(MAX_HEIGHT, height - 72);
   const phoneWidth = Math.round(phoneHeight * RATIO);
+  const column = Math.min(MAX_COLUMN, (width - phoneWidth - 2 * GAP - 64) / 2);
+  const withColumns = column >= MIN_COLUMN;
   const url = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
@@ -87,7 +91,7 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
       end={{ x: 1, y: 1 }}
       style={styles.page}>
       <View style={styles.row}>
-        {width >= WITH_INTRO_WIDTH && <Intro height={phoneHeight} url={url} />}
+        {withColumns && <LeftColumn width={column} height={phoneHeight} />}
 
         <View style={{ width: phoneWidth, height: phoneHeight }}>
           {/* Side buttons sit outside the screen. */}
@@ -114,13 +118,15 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
             </View>
           </View>
         </View>
+
+        {withColumns && <RightColumn width={column} url={url} />}
       </View>
     </LinearGradient>
   );
 }
 
-/** The essentials for an interviewer on a laptop; details slide in on request. */
-function Intro({ height, url }: { height: number; url: string }) {
+/** What it is and what to do: headline, pitch, "How it works", the demo button. */
+function LeftColumn({ width, height }: { width: number; height: number }) {
   const isDemo = useAppStore((s) => s.demo);
   const [showInfo, setShowInfo] = useState(false);
   const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
@@ -138,62 +144,38 @@ function Intro({ height, url }: { height: number; url: string }) {
   }
 
   return (
-    <View style={[styles.intro, { height }]}>
-      <View style={styles.introContent}>
-        <View style={styles.brandRow}>
-          <Logo size={44} />
-          <Text style={styles.brand}>
-            Destress <Text style={{ color: colors.clay }}>AI</Text>
-          </Text>
-        </View>
-        <Text style={styles.pitch}>
-          Most stress trackers make you fill in sliders. Destress AI talks with you for two minutes each evening, tracks
-          stress, sleep and mood from the conversation, and learns what actually helps you.
+    <View style={[styles.column, { width, height }]}>
+      <View style={styles.brandRow}>
+        <Logo size={44} />
+        <Text style={styles.brand}>
+          Destress <Text style={{ color: colors.clay }}>AI</Text>
         </Text>
-        <Pressable onPress={() => setShowInfo(true)} style={styles.infoLink} accessibilityRole="button">
-          <Ionicons name="information-circle-outline" size={18} color={colors.ink} />
-          <Text style={styles.infoLinkText}>How it works</Text>
-        </Pressable>
-
-        <PressableScale onPress={loadDemo} disabled={demo === 'loading'} style={{ marginTop: 32 }}>
-          <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.demoButton}>
-            {demo === 'loading' ? (
-              <>
-                <SoftDots color={colors.ivory} size={5} />
-                <Text style={styles.demoButtonText}>Loading Jonas's 4 weeks…</Text>
-              </>
-            ) : (
-              <>
-                <Ionicons name={isDemo ? 'refresh' : 'play'} size={15} color={colors.ivory} />
-                <Text style={styles.demoButtonText}>{isDemo ? 'Restart the demo' : 'Load the demo'}</Text>
-              </>
-            )}
-          </LinearGradient>
-        </PressableScale>
-        <Text style={styles.demoHint}>
-          {typeof demo === 'object'
-            ? demo.error
-            : 'Four weeks of Jonas, a consultant whose Sundays weigh on him. Today is left open for you to try the check-in.'}
-        </Text>
-
-        <View style={styles.qrCard}>
-          <View style={styles.qrBox}>
-            <QRCode value={url} size={76} color="#1C1B19" backgroundColor="#FFFFFF" />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.qrTitle}>Try it on your phone</Text>
-            <Text style={styles.qrText}>Scan with your camera. Opens in the browser, no install.</Text>
-            <Text style={styles.qrUrl}>{url.replace(/^https?:\/\//, '')}</Text>
-          </View>
-        </View>
-
-        <Pressable onPress={() => Linking.openURL(LINKEDIN)} style={styles.bylineRow} accessibilityRole="link">
-          <Text style={styles.byline}>
-            Built by <Text style={styles.bylineName}>Simon Kraus</Text> · 2026
-          </Text>
-          <Ionicons name="logo-linkedin" size={15} color="#0A66C2" />
-        </Pressable>
       </View>
+      <Text style={styles.pitch}>
+        Most stress trackers make you fill in sliders. Destress AI talks with you for two minutes each evening, tracks
+        stress, sleep and mood from the conversation, and learns what actually helps you.
+      </Text>
+      <Pressable onPress={() => setShowInfo(true)} style={styles.infoLink} accessibilityRole="button">
+        <Ionicons name="information-circle-outline" size={18} color={colors.ink} />
+        <Text style={styles.infoLinkText}>How it works</Text>
+      </Pressable>
+
+      <PressableScale onPress={loadDemo} disabled={demo === 'loading'} style={{ marginTop: 32 }}>
+        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.demoButton}>
+          {demo === 'loading' ? (
+            <>
+              <SoftDots color={colors.ivory} size={5} />
+              <Text style={styles.demoButtonText}>Loading the demo…</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name={isDemo ? 'refresh' : 'play'} size={15} color={colors.ivory} />
+              <Text style={styles.demoButtonText}>{isDemo ? 'Restart the demo' : 'Load the demo'}</Text>
+            </>
+          )}
+        </LinearGradient>
+      </PressableScale>
+      {typeof demo === 'object' && <Text style={styles.error}>{demo.error}</Text>}
 
       {showInfo && (
         <Animated.View entering={FadeInLeft.duration(260)} exiting={FadeOutLeft.duration(200)} style={styles.panel}>
@@ -230,9 +212,47 @@ function Intro({ height, url }: { height: number; url: string }) {
   );
 }
 
+/** Where to get it: QR code for the phone, app stores (coming soon), who built it. */
+function RightColumn({ width, url }: { width: number; url: string }) {
+  return (
+    <View style={[styles.column, { width }]}>
+      <View style={styles.qrBox}>
+        <QRCode value={url} size={120} color="#1C1B19" backgroundColor="#FFFFFF" />
+      </View>
+      <Text style={styles.qrTitle}>Try it on your phone</Text>
+      <Text style={styles.qrText}>Scan with your camera. It opens in the browser, no install needed.</Text>
+
+      <Text style={styles.soon}>COMING SOON</Text>
+      <View style={styles.stores}>
+        <StoreBadge icon="logo-apple" small="Download on the" big="App Store" />
+        <StoreBadge icon="logo-google-playstore" small="Get it on" big="Google Play" />
+      </View>
+
+      <Pressable onPress={() => Linking.openURL(LINKEDIN)} style={styles.bylineRow} accessibilityRole="link">
+        <Text style={styles.byline}>
+          Built by <Text style={styles.bylineName}>Simon Kraus</Text> · 2026
+        </Text>
+        <Ionicons name="logo-linkedin" size={15} color="#0A66C2" />
+      </Pressable>
+    </View>
+  );
+}
+
+function StoreBadge({ icon, small, big }: { icon: 'logo-apple' | 'logo-google-playstore'; small: string; big: string }) {
+  return (
+    <View style={styles.store} accessibilityLabel={`${big}, coming soon`}>
+      <Ionicons name={icon} size={20} color={colors.ivory} />
+      <View>
+        <Text style={styles.storeSmall}>{small}</Text>
+        <Text style={styles.storeBig}>{big}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   page: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 88 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: GAP },
 
   // Phone
   phone: {
@@ -269,9 +289,9 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
 
-  // Text column
-  intro: { width: 380, justifyContent: 'center' },
-  introContent: { paddingRight: 8 },
+  column: { justifyContent: 'center' },
+
+  // Left column
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   brand: { fontFamily: fontFamily.bold, fontSize: 38, letterSpacing: -1.2, color: colors.ink },
   pitch: { ...font.body, fontSize: 16, lineHeight: 25, color: colors.inkSoft, marginTop: 16 },
@@ -291,17 +311,31 @@ const styles = StyleSheet.create({
   infoLinkText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink },
   demoButton: { height: 50, borderRadius: radii.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...shadow.lifted },
   demoButtonText: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ivory },
-  demoHint: { ...font.small, color: colors.textMuted, lineHeight: 17, marginTop: 8 },
-  qrCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 32 },
-  qrBox: { padding: 8, backgroundColor: '#FFFFFF', borderRadius: 14, ...shadow.soft },
-  qrTitle: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink },
-  qrText: { ...font.small, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
-  qrUrl: { ...font.small, fontFamily: fontFamily.semibold, color: colors.inkSoft, marginTop: 4 },
-  bylineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 24, alignSelf: 'flex-start' },
+  error: { ...font.small, color: colors.danger, marginTop: 8 },
+
+  // Right column
+  qrBox: { alignSelf: 'flex-start', padding: 10, backgroundColor: '#FFFFFF', borderRadius: 18, ...shadow.soft },
+  qrTitle: { fontFamily: fontFamily.semibold, fontSize: 16, color: colors.ink, marginTop: 16 },
+  qrText: { ...font.small, fontSize: 13, color: colors.textMuted, marginTop: 4, lineHeight: 19 },
+  soon: { ...font.label, color: colors.textMuted, marginTop: 32 },
+  stores: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },
+  store: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#1C1B19',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    opacity: 0.85,
+  },
+  storeSmall: { fontFamily: fontFamily.medium, fontSize: 9, color: 'rgba(251,250,247,0.75)', lineHeight: 11 },
+  storeBig: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ivory, lineHeight: 18 },
+  bylineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 32, alignSelf: 'flex-start' },
   byline: { ...font.small, color: colors.textMuted },
   bylineName: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
 
-  // "How it works" panel, over the text column
+  // "How it works" panel, over the left column
   panel: {
     position: 'absolute',
     top: 0,
