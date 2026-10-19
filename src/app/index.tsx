@@ -24,7 +24,7 @@ const FEATURES = [
 
 export default function Start() {
   const router = useRouter();
-  const { onboarded, setOnboarded, setName } = useAppStore();
+  const { onboarded, setOnboarded, setName, setDemo: markDemoAccount } = useAppStore();
   const insets = useSafeAreaInsets();
   const [nameInput, setNameInput] = useState('');
   const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
@@ -42,6 +42,7 @@ export default function Start() {
     try {
       await loadDemoData();
       setName('Jonas');
+      markDemoAccount(true);
       setOnboarded(true);
       router.replace('/(tabs)/home');
     } catch (err) {

@@ -56,7 +56,9 @@
     "test:deep-dives": "node --env-file=.env scripts/test-deep-dives.mjs",
     "test:rag": "node --env-file=.env scripts/test-rag.mjs",
     "test:untangle": "node --env-file=.env scripts/test-untangle.mjs",
-    "test:community": "node --env-file=.env scripts/test-community.mjs"
+    "test:community": "node --env-file=.env scripts/test-community.mjs",
+    "build:web": "expo export -p web && node scripts/web-routing.mjs",
+    "deploy:web": "npm run build:web && vercel deploy dist --prod"
   },
   "private": true
 }

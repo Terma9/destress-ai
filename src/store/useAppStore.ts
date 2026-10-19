@@ -21,6 +21,8 @@ export type ExerciseSession = {
 type AppState = {
   onboarded: boolean;
   name: string;
+  /** True for the demo account (Jonas): the AI then always writes in English, like the demo data. */
+  demo: boolean;
   todayMood: MoodKey | null;
   todayMoodDate: string | null;
   activityDates: string[];
@@ -29,6 +31,7 @@ type AppState = {
   reminderEnabled: boolean;
   setOnboarded: (v: boolean) => void;
   setName: (name: string) => void;
+  setDemo: (v: boolean) => void;
   setTodayMood: (m: MoodKey) => void;
   /** Counts today toward the streak (e.g. after a finished check-in). */
   recordActivity: () => void;
@@ -48,6 +51,7 @@ export const useAppStore = create<AppState>()(
     (set) => ({
       onboarded: false,
       name: '',
+      demo: false,
       todayMood: null,
       todayMoodDate: null,
       activityDates: [],
@@ -56,6 +60,7 @@ export const useAppStore = create<AppState>()(
       reminderEnabled: false,
       setOnboarded: (v) => set({ onboarded: v }),
       setName: (name) => set({ name: name.trim() }),
+      setDemo: (v) => set({ demo: v }),
       setTodayMood: (m) =>
         set((s) => ({
           todayMood: m,

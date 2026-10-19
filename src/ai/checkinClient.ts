@@ -9,6 +9,7 @@ import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { dateKey } from '@/lib/dates';
 import { supabase } from '@/lib/supabase';
+import { useAppStore } from '@/store/useAppStore';
 
 export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -59,7 +60,8 @@ async function post(name: string, body: Record<string, unknown>) {
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ day: dateKey(new Date()), language: deviceLanguage(), ...body }),
+    // The demo account's data is English, so its AI texts are too, whatever the device language.
+    body: JSON.stringify({ day: dateKey(new Date()), language: useAppStore.getState().demo ? 'en' : deviceLanguage(), ...body }),
   });
   await throwIfFailed(res);
   return res;
