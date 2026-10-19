@@ -1,6 +1,6 @@
 /**
- * Start screen: the logo, what the app does in one sentence, three color
- * fields for the three core features, and the user's name. Or, for an
+ * Start screen: the logo sending out soft rings, what the app does in one
+ * sentence, and the user's name. Or, for an
  * interviewer: "Explore the demo" loads Jonas's last four weeks (seed-demo)
  * into this fresh account and opens Today.
  */
@@ -14,13 +14,7 @@ import { HaloLogo, SoftDots } from '@/components/brand';
 import { AiMark, FadeIn, PressableScale, Sheen } from '@/components/motion';
 import { startDemo } from '@/lib/demo';
 import { useAppStore } from '@/store/useAppStore';
-import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing, tints } from '@/theme';
-
-const FEATURES = [
-  { icon: 'moon-outline', label: 'Evening\ncheck-in', field: fields.stress },
-  { icon: 'calendar-outline', label: 'Your days\nat a glance', field: fields.sleep },
-  { icon: 'compass-outline', label: 'Help when\nit gets heavy', field: fields.mood },
-] as const;
+import { colors, font, fontFamily, gradients, radii, shadow, spacing, tints } from '@/theme';
 
 export default function Start() {
   const router = useRouter();
@@ -59,7 +53,7 @@ export default function Start() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.center}>
           <FadeIn>
-            <HaloLogo size={140} />
+            <HaloLogo size={140} rings />
           </FadeIn>
 
           <FadeIn delay={150} style={styles.textBlock}>
@@ -67,31 +61,20 @@ export default function Start() {
               Destress <Text style={{ color: colors.clay }}>AI</Text>
             </Text>
             <Text style={styles.tagline}>
-              A calm minute every evening, patterns from your days, and help when stress hits.
+              A short conversation every evening, patterns from your days, and help when stress hits.
             </Text>
             <View style={{ marginTop: spacing.md }}>
               <AiMark label="A COMPANION THAT LEARNS WHAT HELPS YOU" />
             </View>
           </FadeIn>
 
-          <View style={styles.features}>
-            {FEATURES.map((f, i) => (
-              <FadeIn key={f.label} delay={300 + i * 90} style={{ flex: 1 }}>
-                <LinearGradient colors={[f.field.from, f.field.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.feature}>
-                  <Ionicons name={f.icon} size={20} color={f.field.ink} />
-                  <Text style={[styles.featureLabel, { color: f.field.ink }]}>{f.label}</Text>
-                </LinearGradient>
-              </FadeIn>
-            ))}
-          </View>
         </View>
 
         <FadeIn delay={600}>
-          <Text style={styles.ask}>What should I call you?</Text>
           <TextInput
             value={nameInput}
             onChangeText={setNameInput}
-            placeholder="Your first name"
+            placeholder="What should I call you?"
             placeholderTextColor={colors.textFaint}
             style={styles.nameInput}
             autoCapitalize="words"
@@ -135,17 +118,6 @@ const styles = StyleSheet.create({
   textBlock: { alignItems: 'center', marginTop: -spacing.md },
   brand: { fontFamily: fontFamily.bold, fontSize: 34, letterSpacing: -1, color: colors.ink },
   tagline: { ...font.body, fontSize: 15, color: colors.inkSoft, textAlign: 'center', lineHeight: 22, marginTop: spacing.sm, maxWidth: 300 },
-  features: { flexDirection: 'row', gap: 9, marginTop: spacing.xl, alignSelf: 'stretch' },
-  feature: {
-    borderRadius: radii.lg - 4,
-    padding: 12,
-    height: 96,
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.65)',
-  },
-  featureLabel: { fontFamily: fontFamily.semibold, fontSize: 12, lineHeight: 16 },
-  ask: { ...font.title, color: colors.ink, textAlign: 'center', marginBottom: spacing.sm },
   nameInput: {
     backgroundColor: colors.card,
     borderRadius: radii.md,

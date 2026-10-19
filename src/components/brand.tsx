@@ -47,14 +47,52 @@ function Glow({ size, opacity }: { size: number; opacity: number }) {
   );
 }
 
-/** The logo at rest in its soft clay glow, for the start screen. */
-export function HaloLogo({ size = 148 }: { size?: number }) {
+const RING_MS = 7000;
+const RINGS = 3;
+
+/**
+ * The logo in its soft clay glow. With `rings`, it sends out soft rings that
+ * slowly widen and fade, like ripples on still water, and breathes gently.
+ */
+export function HaloLogo({ size = 148, rings = false }: { size?: number; rings?: boolean }) {
+  const reduced = useReducedMotion();
+  const breath = useSharedValue(0);
+  const animate = rings && !reduced;
+  useEffect(() => {
+    if (animate) {
+      breath.value = withRepeat(withTiming(1, { duration: 4500, easing: Easing.inOut(Easing.sin) }), -1, true);
+    }
+  }, [animate]);
+  const logo = useAnimatedStyle(() => ({ transform: [{ scale: 1 + breath.value * 0.03 }] }));
   const halo = size * 1.75;
   return (
     <View style={{ width: halo, height: halo, alignItems: 'center', justifyContent: 'center' }}>
       <Glow size={halo} opacity={1} />
-      <Logo size={size} />
+      {animate && Array.from({ length: RINGS }, (_, i) => <Ring key={i} index={i} size={size} max={halo * 1.15} />)}
+      <Animated.View style={logo}>
+        <Logo size={size} />
+      </Animated.View>
     </View>
+  );
+}
+
+function Ring({ index, size, max }: { index: number; size: number; max: number }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    t.value = withDelay(
+      (index * RING_MS) / RINGS,
+      withRepeat(withTiming(1, { duration: RING_MS, easing: Easing.out(Easing.quad) }), -1, false),
+    );
+  }, []);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: 0.8 + t.value * (max / size - 0.8) }],
+    opacity: t.value < 0.1 ? t.value * 3.5 : 0.35 * (1 - t.value),
+  }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 1.2, borderColor: fields.stress.strong }, style]}
+    />
   );
 }
 
