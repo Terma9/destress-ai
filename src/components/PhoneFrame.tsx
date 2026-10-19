@@ -38,7 +38,7 @@ const SECTIONS: Section[] = [
     tint: fields.stress.from,
     ink: fields.stress.deep,
     title: 'Evening check-in',
-    text: 'Talk about your day for two minutes, by voice or text. The app remembers your past days, asks follow-up questions and fills in stress, sleep and mood with a short reason each. You confirm with one tap.',
+    text: 'Talk about your day for two minutes, by voice or text. The app remembers your past days, asks follow-up questions and fills in stress, sleep and mood with a short reason each.',
   },
   {
     key: 'insights',
