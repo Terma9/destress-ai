@@ -502,7 +502,7 @@ export const sleepPlan = {
   title: 'Falling asleep after stressful days',
   problem: 'After a late evening you lie awake. You sleep only about 5 hours.',
   plan: {
-    approach: 'Your head keeps working after work. Moving outside helps you switch off: after your walk by the lake you slept 8 hours. So the plan has three parts: a walk, a phone-free bedroom and a note for thoughts at night.',
+    approach: 'Moving outside helps you switch off. After your walk by the lake, you slept 8 hours.',
     watch_for: 'You sleep 7 hours or more on most nights.',
     note: 'Some nights will still be short. That is okay.',
     lessons: [
@@ -544,7 +544,7 @@ export const bossPlan = {
   title: 'Saying no to my boss',
   problem: 'Markus often gives you tasks after 5 pm. You say yes, work late and sleep badly.',
   plan: {
-    approach: 'Most late tasks can wait until the morning. You say yes because it feels easier in the moment. So the plan gives you one sentence for that moment, and one clear rule with Markus.',
+    approach: 'Most late tasks can wait until the morning. One ready sentence and one clear rule with Markus make saying no easier.',
     watch_for: 'You leave work by 6:30 pm on most days.',
     note: "You can't control what Markus asks. You can control your answer.",
     lessons: [

@@ -214,7 +214,7 @@ export function buildPlanPrompt(ctx: UntangleContext, intensity: number, current
 ${update}
 Rules:
 - Language: clear, precise and plain, like a good coach. Concrete words, no jargon, no filler, no exclamation marks. Not oversimplified either: say exactly what to do and why.
-- approach: 2–3 sentences (max 60 words): the idea behind the plan and why it fits this person, based on what you know about them (their patterns, check-ins, earlier plans). This is the argument for the plan.
+- approach: 1–2 short sentences (max 30 words): why this plan fits this person, based on one concrete thing you know about them (a pattern, a check-in, an earlier plan). Simple words.
 - steps: 2 to 4 concrete steps, each one sentence of about 8–20 words: the action, plus when or how often (e.g. "Stop studying at 9 pm on weekdays and write tomorrow's three tasks on a note."). Specific to their situation, small enough to start this week. Build on what helped them before; avoid what made things worse.
 - watch_for: one short sentence: how they will notice that the plan is working.
 - minutes: roughly how long one step takes each time.
@@ -245,7 +245,7 @@ export const PLAN_SCHEMA = {
   properties: {
     title: { type: 'string', description: '2–6 words, e.g. "Statistics resit tomorrow".' },
     problem: { type: 'string', description: 'One sentence, addressed to the user.' },
-    approach: { type: 'string', description: 'The idea behind the plan and why it fits them, 2–3 sentences.' },
+    approach: { type: 'string', description: 'The idea behind the plan and why it fits them, 1–2 short sentences, max 30 words.' },
     watch_for: { type: 'string', description: 'How they will notice it works, one sentence.' },
     lessons: {
       type: 'array',

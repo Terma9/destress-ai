@@ -124,8 +124,8 @@ export default function PlanScreen() {
 
       {plan.approach ? (
         <Animated.View entering={FadeInDown.duration(420).delay(80)} style={{ marginTop: spacing.lg }}>
-          <LinearGradient colors={[fields.sleep.from, '#FFFFFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.approach}>
-            <AiMark label="WHY THIS PLAN FITS YOU" color={fields.sleep.deep} size={11} />
+          <LinearGradient colors={[fields.mood.from, '#FFFFFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.approach}>
+            <AiMark label="WHY THIS PLAN FITS YOU" color={fields.mood.deep} size={11} />
             <Text style={styles.approachText}>{plan.approach}</Text>
           </LinearGradient>
         </Animated.View>
