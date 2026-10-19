@@ -1,19 +1,23 @@
 /**
  * The web demo on a laptop: instead of stretching the app across the screen,
- * shows it in a realistic phone (Dynamic Island, status bar, side buttons),
- * with a short project intro on the left and a QR code on the right that
- * opens the same link on a phone. On phones and in the native app it renders
- * the app unchanged.
+ * shows it in a realistic phone (Dynamic Island, status bar, side buttons).
+ * On the left, the project in short: what it does, each feature as a toggle,
+ * the tech stack, and a button that loads the demo at any time. On the right,
+ * a QR code that opens the same link on a phone. On phones and in the native
+ * app it renders the app unchanged.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import type { ReactNode } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { type ReactNode, useState } from 'react';
+import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
-import { Logo } from '@/components/brand';
-import { AiMark } from '@/components/motion';
-import { colors, fields, font, fontFamily, radii, shadow, tints } from '@/theme';
+import { Logo, SoftDots } from '@/components/brand';
+import { PressableScale } from '@/components/motion';
+import { startDemo } from '@/lib/demo';
+import { useAppStore } from '@/store/useAppStore';
+import { colors, fields, font, fontFamily, gradients, radii, shadow, tints } from '@/theme';
 
 const MIN_DESKTOP_WIDTH = 700;
 /** From this width there is room for the project intro next to the phone. */
@@ -23,31 +27,60 @@ const RATIO = 0.47; // width / height of a modern phone
 const BEZEL = 11;
 /** Space the app keeps free for the status bar and the home indicator, like on a real phone. */
 const PHONE_INSETS = { top: 50, bottom: 22, left: 0, right: 0 };
-
-const FEATURES = [
-  {
-    icon: 'chatbubbles-outline',
-    field: fields.stress,
-    title: 'Evening check-in',
-    text: 'A short conversation instead of sliders. The AI suggests stress, sleep and mood with reasons; you adjust.',
-  },
-  {
-    icon: 'analytics-outline',
-    field: fields.sleep,
-    title: 'Weekly Insights',
-    text: 'Patterns across your days, each backed by the entries behind it.',
-  },
-  {
-    icon: 'leaf-outline',
-    field: fields.mood,
-    title: 'Untangle',
-    text: 'Calm now for the moment, Stress solving for what keeps coming back.',
-  },
-] as const;
-
 const LINKEDIN = 'https://www.linkedin.com/in/simon--kraus/';
 
-const STACK = ['Expo · React Native', 'Supabase · Postgres + RLS', 'pgvector RAG', 'OpenAI · structured output', 'Edge Functions'];
+type Section = { key: string; icon: string; tint: string; ink: string; title: string; text?: string; chips?: string[] };
+
+const SECTIONS: Section[] = [
+  {
+    key: 'checkin',
+    icon: 'chatbubbles-outline',
+    tint: fields.stress.from,
+    ink: fields.stress.deep,
+    title: 'Evening check-in',
+    text: 'A two-minute conversation, typed or spoken, instead of sliders. The AI asks about your day and supports you. Afterwards it suggests stress, sleep and mood (0–10) with a reason for each, and you confirm or adjust. One entry per day, saved to your calendar.',
+  },
+  {
+    key: 'insights',
+    icon: 'analytics-outline',
+    tint: fields.sleep.from,
+    ink: fields.sleep.deep,
+    title: 'Weekly Insights',
+    text: 'Once a week the app looks back by itself: this week compared to last week, the patterns in your days (each linked to the entries behind it), what helped, and one question for the week ahead. The numbers are computed in code; the AI only interprets them.',
+  },
+  {
+    key: 'calm',
+    icon: 'leaf-outline',
+    tint: fields.mood.from,
+    ink: fields.mood.deep,
+    title: 'Untangle · Calm now',
+    text: 'For stress in the moment. You say what is going on and how intense it is. The AI calms you down step by step with short exercises, support and small tips that helped you before. At the end you rate it again, for example 8 → 4.',
+  },
+  {
+    key: 'solve',
+    icon: 'git-branch-outline',
+    tint: fields.sleep.from,
+    ink: fields.sleep.deep,
+    title: 'Untangle · Stress solving',
+    text: 'For stress that keeps coming back. The AI asks until it knows enough, then builds a plan based on your own check-ins and patterns. You keep telling it how it goes, and the plan changes with you. Once solved, you can share your story anonymously in the community.',
+  },
+  {
+    key: 'stack',
+    icon: 'code-slash-outline',
+    tint: colors.sand,
+    ink: colors.ink,
+    title: 'Tech stack',
+    chips: [
+      'Expo · React Native (iOS, Android, web)',
+      'Supabase · Postgres with row-level security',
+      'Edge Functions (Deno)',
+      'OpenAI · streaming, structured output, speech-to-text',
+      'RAG · pgvector over topics of past check-ins',
+      'AI moderation & anonymisation',
+      'Daily AI quotas',
+    ],
+  },
+];
 
 export function PhoneFrame({ children }: { children: ReactNode }) {
   const { width, height } = useWindowDimensions();
@@ -65,7 +98,7 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
       end={{ x: 1, y: 1 }}
       style={styles.page}>
       <View style={styles.row}>
-        {width >= WITH_INTRO_WIDTH && <Intro />}
+        {width >= WITH_INTRO_WIDTH && <Intro maxHeight={phoneHeight} />}
 
         <View style={{ width: phoneWidth, height: phoneHeight }}>
           {/* Side buttons sit outside the screen. */}
@@ -106,11 +139,26 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
   );
 }
 
-/** The project in a few lines, for an interviewer opening the link on a laptop. */
-function Intro() {
+/** The project in short, for an interviewer opening the link on a laptop. */
+function Intro({ maxHeight }: { maxHeight: number }) {
+  const isDemo = useAppStore((s) => s.demo);
+  const [open, setOpen] = useState<string | null>(null);
+  const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
+
+  async function loadDemo() {
+    setDemo('loading');
+    try {
+      await startDemo();
+      // A full reload, so every screen starts fresh with the new demo account
+      // (and this week's Weekly Insights get written live).
+      window.location.replace('/home');
+    } catch (err) {
+      setDemo({ error: (err as Error).message });
+    }
+  }
+
   return (
-    <View style={styles.intro}>
-      <Text style={styles.kicker}>PORTFOLIO PROJECT</Text>
+    <ScrollView style={[styles.intro, { maxHeight }]} contentContainerStyle={{ paddingVertical: 8 }} showsVerticalScrollIndicator={false}>
       <View style={styles.brandRow}>
         <Logo size={40} />
         <Text style={styles.brand}>
@@ -118,46 +166,73 @@ function Intro() {
         </Text>
       </View>
       <Text style={styles.pitch}>
-        Stress apps make you fill in sliders. Destress AI talks with you for two minutes each evening, tracks stress, sleep
-        and mood from the conversation, and learns what actually helps you.
+        Most stress trackers make you fill in sliders. Destress AI talks with you for two minutes each evening, tracks
+        stress, sleep and mood from the conversation, and learns what actually helps you.
       </Text>
 
-      <View style={styles.features}>
-        {FEATURES.map((f) => (
-          <View key={f.title} style={styles.feature}>
-            <View style={[styles.featureIcon, { backgroundColor: f.field.from }]}>
-              <Ionicons name={f.icon} size={17} color={f.field.deep} />
+      <View style={styles.sections}>
+        {SECTIONS.map((s) => {
+          const isOpen = open === s.key;
+          return (
+            <View key={s.key} style={[styles.section, isOpen && styles.sectionOpen]}>
+              <Pressable
+                onPress={() => setOpen(isOpen ? null : s.key)}
+                style={styles.sectionHead}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isOpen }}>
+                <View style={[styles.sectionIcon, { backgroundColor: s.tint }]}>
+                  <Ionicons name={s.icon as never} size={16} color={s.ink} />
+                </View>
+                <Text style={styles.sectionTitle}>{s.title}</Text>
+                <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={16} color={colors.textMuted} />
+              </Pressable>
+              {isOpen && (
+                <Animated.View entering={FadeIn.duration(220)} style={styles.sectionBody}>
+                  {s.text ? <Text style={styles.sectionText}>{s.text}</Text> : null}
+                  {s.chips ? (
+                    <View style={styles.chips}>
+                      {s.chips.map((c) => (
+                        <Text key={c} style={styles.chip}>
+                          {c}
+                        </Text>
+                      ))}
+                    </View>
+                  ) : null}
+                </Animated.View>
+              )}
             </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.featureTitle}>{f.title}</Text>
-              <Text style={styles.featureText}>{f.text}</Text>
-            </View>
-          </View>
-        ))}
+          );
+        })}
       </View>
 
-      <View style={styles.stack}>
-        {STACK.map((s) => (
-          <Text key={s} style={styles.chip}>
-            {s}
-          </Text>
-        ))}
-      </View>
+      <PressableScale onPress={loadDemo} disabled={demo === 'loading'} style={{ marginTop: 20 }}>
+        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.demoButton}>
+          {demo === 'loading' ? (
+            <>
+              <SoftDots color={colors.ivory} size={5} />
+              <Text style={styles.demoButtonText}>Loading Jonas's 4 weeks…</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name={isDemo ? 'refresh' : 'play'} size={15} color={colors.ivory} />
+              <Text style={styles.demoButtonText}>{isDemo ? 'Restart the demo' : 'Load the demo'}</Text>
+            </>
+          )}
+        </LinearGradient>
+      </PressableScale>
+      <Text style={styles.demoHint}>
+        {typeof demo === 'object'
+          ? demo.error
+          : 'Four weeks of Jonas, a consultant whose Sundays weigh on him. Today is left open for you to try the check-in.'}
+      </Text>
 
-      <View style={styles.demoHint}>
-        <AiMark size={12} />
-        <Text style={styles.demoHintText}>
-          Tap <Text style={styles.bold}>explore the demo</Text> to see four weeks of Jonas, a consultant whose Sundays
-          weigh on him.
-        </Text>
-      </View>
       <Pressable onPress={() => Linking.openURL(LINKEDIN)} style={styles.bylineRow} accessibilityRole="link">
         <Text style={styles.byline}>
           Built by <Text style={styles.bylineName}>Simon Kraus</Text> · 2026
         </Text>
         <Ionicons name="logo-linkedin" size={15} color="#0A66C2" />
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -201,38 +276,33 @@ const styles = StyleSheet.create({
   },
 
   // Intro
-  intro: { width: 330 },
-  kicker: { ...font.label, color: colors.textMuted },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+  intro: { width: 340, flexGrow: 0 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brand: { fontFamily: fontFamily.bold, fontSize: 34, letterSpacing: -1, color: colors.ink },
   pitch: { ...font.body, fontSize: 15, lineHeight: 23, color: colors.inkSoft, marginTop: 14 },
-  features: { gap: 14, marginTop: 24 },
-  feature: { flexDirection: 'row', gap: 12 },
-  featureIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  featureTitle: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink },
-  featureText: { ...font.small, color: colors.textMuted, lineHeight: 17, marginTop: 2 },
-  stack: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 24 },
+  sections: { gap: 8, marginTop: 22 },
+  section: { borderRadius: radii.md, backgroundColor: 'rgba(255,255,255,0.55)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.8)' },
+  sectionOpen: { backgroundColor: 'rgba(255,255,255,0.85)', ...shadow.soft },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 10 },
+  sectionIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  sectionTitle: { flex: 1, fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink },
+  sectionBody: { paddingHorizontal: 12, paddingBottom: 12, paddingTop: 2 },
+  sectionText: { ...font.small, color: colors.inkSoft, lineHeight: 19 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: {
     ...font.tiny,
     fontFamily: fontFamily.medium,
     color: colors.inkSoft,
-    backgroundColor: 'rgba(255,255,255,0.7)',
+    backgroundColor: colors.sand,
     borderRadius: radii.pill,
     paddingHorizontal: 10,
     paddingVertical: 5,
     overflow: 'hidden',
   },
-  demoHint: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 24,
-    padding: 12,
-    borderRadius: radii.md,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-  },
-  demoHintText: { ...font.small, color: colors.inkSoft, flex: 1, lineHeight: 18 },
-  bold: { fontFamily: fontFamily.semibold, color: colors.ink },
-  bylineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 18, alignSelf: 'flex-start' },
+  demoButton: { height: 48, borderRadius: radii.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, ...shadow.lifted },
+  demoButtonText: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ivory },
+  demoHint: { ...font.small, color: colors.textMuted, lineHeight: 17, marginTop: 8 },
+  bylineRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 22, alignSelf: 'flex-start' },
   byline: { ...font.small, color: colors.textMuted },
   bylineName: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
 

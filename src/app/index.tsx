@@ -10,9 +10,9 @@ import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { loadDemoData } from '@/ai/checkinClient';
 import { HaloLogo, SoftDots } from '@/components/brand';
 import { AiMark, FadeIn, PressableScale, Sheen } from '@/components/motion';
+import { startDemo } from '@/lib/demo';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing, tints } from '@/theme';
 
@@ -24,7 +24,7 @@ const FEATURES = [
 
 export default function Start() {
   const router = useRouter();
-  const { onboarded, setOnboarded, setName, setDemo: markDemoAccount } = useAppStore();
+  const { onboarded, setOnboarded, setName } = useAppStore();
   const insets = useSafeAreaInsets();
   const [nameInput, setNameInput] = useState('');
   const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
@@ -40,10 +40,7 @@ export default function Start() {
   const exploreDemo = async () => {
     setDemo('loading');
     try {
-      await loadDemoData();
-      setName('Jonas');
-      markDemoAccount(true);
-      setOnboarded(true);
+      await startDemo();
       router.replace('/(tabs)/home');
     } catch (err) {
       setDemo({ error: (err as Error).message });
