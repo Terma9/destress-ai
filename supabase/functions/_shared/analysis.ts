@@ -8,10 +8,12 @@
  * evidence never reaches the user.
  */
 
-export const PROMPT_VERSION = 'deep-dives-v1';
-export const MIN_CHECKINS = 5;
+export const PROMPT_VERSION = 'weekly-insights-v1';
+export const MIN_CHECKINS = 3;
 /** Check-ins needed since the last analysis before a new one is allowed. */
 export const NEW_CHECKINS_FOR_REFRESH = 3;
+/** Weekly: a new look back at the earliest 7 days after the last one. */
+export const DAYS_BETWEEN = 7;
 /** How many recent check-ins go into the prompt. RAG will lift this limit later. */
 export const MAX_ENTRIES = 40;
 /** A pattern needs at least two data points. */
@@ -83,6 +85,37 @@ export function computeStats(entries: Entry[]): Stats {
   };
 }
 
+/** This week (last 7 days) vs the week before, per value. Computed by code so the numbers are exact. */
+export type WeekStats = {
+  checkins: number;
+  thisWeek: { stress: number | null; sleep: number | null; mood: number | null };
+  lastWeek: { stress: number | null; sleep: number | null; mood: number | null };
+};
+
+export function computeWeek(entries: Entry[], today: string): WeekStats {
+  const shift = (days: number) => {
+    const d = new Date(`${today}T12:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - days);
+    return d.toISOString().slice(0, 10);
+  };
+  const weekStart = shift(6);
+  const lastStart = shift(13);
+  const values = (list: Entry[]) => ({
+    stress: avg(list.map((e) => e.stress)),
+    sleep: avg(list.map((e) => e.sleep)),
+    mood: avg(list.map((e) => e.emotion)),
+  });
+  const thisWeek = entries.filter((e) => e.day >= weekStart && e.day <= today);
+  return {
+    checkins: thisWeek.length,
+    thisWeek: values(thisWeek),
+    lastWeek: values(entries.filter((e) => e.day >= lastStart && e.day < weekStart)),
+  };
+}
+
+/** An Untangle plan with a known outcome, as context for "what worked". */
+export type PlanOutcome = { title: string; outcome: string; note: string | null };
+
 function formatStats(s: Stats): string {
   const g = (label: string, x: Group) => `- ${label}: ${x.count} check-ins, average stress ${x.avgStress ?? '?'}/10`;
   return [
@@ -107,24 +140,33 @@ function formatEntry(e: Entry): string {
 }
 
 export function buildAnalysisSystemPrompt(input: { name: string | null; language: string }): string {
-  return `You analyze the check-in diary of ${input.name || 'a user'} from Destress AI, a stress-management app, and write "Deep Dives": short, personal explorations of the most important patterns in their entries.
+  return `You write the "Weekly Insights" for ${input.name || 'a user'} in Destress AI, a stress-management app: a warm, short look back at their week, based on their daily check-ins. Focus on this week (marked below); older entries are context for patterns that repeat.
 
-Rules for findings:
-- Write 2 or 3 deep dives, each about one pattern that clearly shows up in the entries. Fewer, well-supported findings are better than many weak ones. If something isn't clearly supported, leave it out.
+Rules for patterns (the "deep_dives" field):
+- Write 1 to 3 patterns, each about something that clearly shows up in the entries, most relevant to this week first. Fewer, well-supported findings are better than many weak ones. If something isn't clearly supported, leave it out.
 - Every finding must cite at least ${MIN_EVIDENCE} entries as evidence, using their labels exactly as given (e.g. "E3"). Only cite entries that directly show what the finding says.
 - When you mention numbers, use only the computed facts below. Never calculate averages yourself.
 - Describe patterns, not causes you can't know ("on days you walked, your stress was lower", not "walking cures your stress").
 - You are not a therapist: no diagnoses, no medical advice.
 
 Rules for the rest:
-- Reflection questions: 2 per deep dive, open, personal and non-judgmental, helping them think about the pattern.
-- Insight: one encouraging, specific sentence (max 25 words) about their most useful pattern, shown on their home screen.
+- Reflection questions: 2 per pattern, open, personal and non-judgmental, helping them think about the pattern.
+- worked: 1 to 4 short items of what helped them this week, in their own terms (from "Helped" in the entries and from Untangle plans that worked). Only things they actually did or named; never your own suggestions. Empty if nothing is known.
+- question: one open, gentle question for the week ahead, building on this week.
+- Insight: one encouraging, specific sentence (max 25 words) about their week, shown on their home screen.
 - Address the user as "you". Write everything in ${input.language}, regardless of the entries' language.`;
 }
 
-export function buildAnalysisInput(entries: Entry[], stats: Stats): string {
-  return `Computed facts (calculated by code, use these numbers):
+export function buildAnalysisInput(entries: Entry[], stats: Stats, week: WeekStats, plans: PlanOutcome[]): string {
+  const w = (v: WeekStats['thisWeek']) => `stress ${v.stress ?? '?'}, sleep ${v.sleep ?? '?'}, mood ${v.mood ?? '?'}`;
+  const planLines = plans.map((p) => `- "${p.title}": ${p.outcome}${p.note ? ` · what helped: ${p.note}` : ''}`);
+  return `This week (last 7 days): ${week.checkins} check-ins · averages ${w(week.thisWeek)} · the week before: ${w(week.lastWeek)}
+
+Computed facts over all entries below (calculated by code, use these numbers):
 ${formatStats(stats)}
+
+Untangle plans with a known outcome (recent):
+${planLines.join('\n') || '–'}
 
 Entries (newest first):
 ${entries.map(formatEntry).join('\n\n')}`;
@@ -132,6 +174,8 @@ ${entries.map(formatEntry).join('\n\n')}`;
 
 export type AnalysisOutput = {
   insight: string;
+  worked: { text: string; source: 'checkin' | 'untangle' }[];
+  question: string;
   deep_dives: {
     title: string;
     description: string;
@@ -144,12 +188,26 @@ export type AnalysisOutput = {
 export const ANALYSIS_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['insight', 'deep_dives'],
+  required: ['insight', 'worked', 'question', 'deep_dives'],
   properties: {
     insight: { type: 'string', description: 'One sentence, max 25 words, for the home screen.' },
+    worked: {
+      type: 'array',
+      description: '0 to 4 things that helped this week.',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['text', 'source'],
+        properties: {
+          text: { type: 'string', description: 'Max 12 words.' },
+          source: { type: 'string', enum: ['checkin', 'untangle'] },
+        },
+      },
+    },
+    question: { type: 'string', description: 'One question for the week ahead.' },
     deep_dives: {
       type: 'array',
-      description: '2 or 3 deep dives, most important first.',
+      description: '1 to 3 patterns, most relevant first.',
       items: {
         type: 'object',
         additionalProperties: false,
@@ -198,7 +256,13 @@ export type ValidDeepDive = {
 export function validateAnalysis(
   output: AnalysisOutput,
   entries: Entry[],
-): { insight: string; deepDives: ValidDeepDive[]; droppedFindings: number } {
+): {
+  insight: string;
+  worked: AnalysisOutput['worked'];
+  question: string;
+  deepDives: ValidDeepDive[];
+  droppedFindings: number;
+} {
   const idByRef = new Map(entries.map((e) => [e.ref.toUpperCase(), e.id]));
   let droppedFindings = 0;
 
@@ -225,5 +289,9 @@ export function validateAnalysis(
     ];
   });
 
-  return { insight: output.insight.trim(), deepDives, droppedFindings };
+  const worked = output.worked
+    .map((w) => ({ text: w.text.trim().slice(0, 120), source: w.source === 'untangle' ? ('untangle' as const) : ('checkin' as const) }))
+    .filter((w) => w.text)
+    .slice(0, 4);
+  return { insight: output.insight.trim(), worked, question: output.question.trim(), deepDives, droppedFindings };
 }

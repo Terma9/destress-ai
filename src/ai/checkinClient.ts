@@ -166,14 +166,9 @@ export async function searchCheckins(query: string): Promise<SearchResult[]> {
   return results;
 }
 
-/** Analyzes the user's check-ins into Deep Dives; resolves once they're saved. */
+/** Writes the user's Weekly Insights (sends today's local date); resolves once they're saved. */
 export async function generateDeepDives(): Promise<void> {
-  const res = await fetch(`${FUNCTIONS_URL}/deep-dive-generate`, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${await accessToken()}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ language: deviceLanguage() }),
-  });
-  await throwIfFailed(res);
+  await post('deep-dive-generate', {});
 }
 
 /** Sends the finished conversation; the server extracts and saves it. */

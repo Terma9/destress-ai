@@ -7,12 +7,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Logo } from '@/components/brand';
+import { Logo, SoftDots } from '@/components/brand';
 import { FieldTile } from '@/components/fields';
 import { AiMark, FadeIn, LivingGradient, PressableScale, PulseDot, Sheen } from '@/components/motion';
 import { Card, Screen } from '@/components/ui';
 import { type Checkin, useCheckins } from '@/data/checkins';
-import { useLatestInsight } from '@/data/deepDives';
+import { MIN_CHECKINS, useWeeklyInsights } from '@/data/deepDives';
 import { lastSevenDays, useDailyMetrics } from '@/data/metrics';
 import { computeStreak, dateKey, getGreeting, todayKey } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
@@ -52,7 +52,7 @@ export default function Today() {
   const { name, activityDates, reminderEnabled, setReminderEnabled } = useAppStore();
   const { checkins } = useCheckins();
   const { rows } = useDailyMetrics();
-  const insight = useLatestInsight();
+  const weekly = useWeeklyInsights();
   const streak = computeStreak(activityDates);
   const greeting = getGreeting();
 
@@ -167,11 +167,25 @@ export default function Today() {
             end={{ x: 1, y: 1 }}
             style={[StyleSheet.absoluteFill, { borderRadius: radii.lg }]}
           />
-          <AiMark label="YOUR WEEK" color={fields.sleep.deep} />
-          <Text style={styles.insightText}>
-            {insight ?? 'After a few check-ins, I can show you what keeps coming up, with the entries behind it.'}
-          </Text>
-          <Text style={styles.insightLink}>{insight ? 'Open your weekly look →' : 'See how it works →'}</Text>
+          <AiMark
+            label={weekly.status === 'ready' && weekly.fresh ? 'YOUR WEEKLY INSIGHTS ARE READY' : 'WEEKLY INSIGHTS'}
+            color={fields.sleep.deep}
+          />
+          {weekly.status === 'preparing' ? (
+            <View style={styles.preparing}>
+              <SoftDots color={fields.sleep.deep} />
+              <Text style={styles.insightText}>Looking back at your week…</Text>
+            </View>
+          ) : (
+            <Text style={styles.insightText}>
+              {weekly.status === 'ready'
+                ? weekly.analysis.insight
+                : weekly.status === 'locked'
+                  ? `After ${MIN_CHECKINS} check-ins I'll look back at your week: patterns, what worked, and a question for the next one (${weekly.total}/${MIN_CHECKINS}).`
+                  : ' '}
+            </Text>
+          )}
+          <Text style={styles.insightLink}>{weekly.status === 'ready' ? 'Open your week →' : 'See how it works →'}</Text>
         </Card>
       </FadeIn>
 
@@ -300,6 +314,7 @@ const styles = StyleSheet.create({
   insight: { overflow: 'hidden' },
   insightText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.ink, marginTop: spacing.sm },
   insightLink: { fontFamily: fontFamily.semibold, fontSize: 13, color: fields.sleep.ink, marginTop: spacing.md },
+  preparing: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   untangle: {
     borderRadius: radii.lg,
     padding: spacing.lg,

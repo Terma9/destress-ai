@@ -18,6 +18,8 @@ export type UserContext = {
   }[];
   recentMetrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null }[];
   reflections: { question: string; answer: string }[];
+  /** The question for the week ahead from their latest Weekly Insights (if from the last 7 days). */
+  weeklyQuestion: string | null;
   /** Recent Untangle plans whose outcome we don't know yet. */
   openPlans: { title: string; problem: string; steps: { text: string; done: boolean }[] }[];
   /** Whole older conversations whose topic matches what the user just said (found by RAG search). */
@@ -93,8 +95,11 @@ ${recent}
 ## Their recent tracker values
 ${metrics}
 
-## Their answers to reflection questions from their Deep Dives
+## Their answers to reflection questions from their Weekly Insights
 ${reflections}
+
+## This week's question from their Weekly Insights
+${ctx.weeklyQuestion ? `"${ctx.weeklyQuestion}" If it fits naturally, you may touch on it once this week. Never force it.` : 'None.'}
 
 ## Untangle plans to follow up on
 Plans they made recently for an acute stressor. Early in the conversation, ask once, naturally, how it turned out (e.g. "How did the presentation go?") and what made the difference. Don't push if they don't want to talk about it.

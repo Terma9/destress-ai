@@ -68,7 +68,7 @@ export default {
     }
 
     // Load the user's context. RLS guarantees these queries only see their rows.
-    const [profile, checkins, metrics, reflections, openPlans] = await Promise.all([
+    const [profile, checkins, metrics, reflections, openPlans, weekly] = await Promise.all([
       ctx.supabase.from('profiles').select('display_name, memory').maybeSingle(),
       ctx.supabase
         .from('checkins')
@@ -90,6 +90,13 @@ export default {
         console.error('Loading open plans failed:', err);
         return [];
       }),
+      ctx.supabase
+        .from('analyses')
+        .select('question')
+        .gte('created_at', new Date(Date.now() - 7 * 86_400_000).toISOString())
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
     const related = await findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id));
@@ -101,6 +108,7 @@ export default {
         recentCheckins: checkins.data ?? [],
         recentMetrics: metrics.data ?? [],
         reflections: reflections.data ?? [],
+        weeklyQuestion: weekly.data?.question ?? null,
         openPlans,
         related,
       },

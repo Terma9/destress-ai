@@ -1,17 +1,25 @@
 /**
- * Deep Dives as stored in Supabase. Generating them goes through the
- * deep-dive-generate Edge Function (it calls the AI); everything else is
- * plain reads/writes protected by RLS, so no Edge Function is needed.
+ * Weekly Insights (stored as analyses + deep_dives, the patterns). Generating
+ * goes through the deep-dive-generate Edge Function (it calls the AI), and the
+ * app triggers it by itself once it's due; everything else is plain
+ * reads/writes protected by RLS.
  */
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
+import { generateDeepDives } from '@/ai/checkinClient';
 import type { MoodKey } from '@/data/content';
 import { supabase } from '@/lib/supabase';
 import { gradients } from '@/theme';
 
 /** Keep in sync with supabase/functions/_shared/analysis.ts. */
-export const MIN_CHECKINS = 5;
+export const MIN_CHECKINS = 3;
 export const NEW_CHECKINS_FOR_REFRESH = 3;
+export const DAYS_BETWEEN = 7;
+const DAY_MS = 86_400_000;
+
+export type WeekValues = { stress: number | null; sleep: number | null; mood: number | null };
+export type Week = { checkins: number; thisWeek: WeekValues; lastWeek: WeekValues };
+export type Worked = { text: string; source: 'checkin' | 'untangle' };
 
 export type Finding = { text: string; evidence: string[] };
 
@@ -32,6 +40,10 @@ export type Analysis = {
   created_at: string;
   checkin_count: number;
   insight: string;
+  /** Empty object for analyses written before Weekly Insights. */
+  week: Partial<Week>;
+  worked: Worked[];
+  question: string | null;
   deepDives: DeepDive[];
 };
 
@@ -66,7 +78,7 @@ export const answeredCount = (d: DeepDive) => d.questions.filter((_, i) => d.ans
 export async function fetchLatestAnalysis(): Promise<Analysis | null> {
   const { data, error } = await supabase
     .from('analyses')
-    .select(`id, created_at, checkin_count, insight, deep_dives(${DIVE_COLUMNS})`)
+    .select(`id, created_at, checkin_count, insight, week, worked, question, deep_dives(${DIVE_COLUMNS})`)
     .order('created_at', { ascending: false })
     .order('position', { referencedTable: 'deep_dives' })
     .limit(1)
@@ -116,6 +128,61 @@ export function useDeepDives() {
 
   useFocusEffect(load);
   return { state, error, reload: load };
+}
+
+/** True when new Weekly Insights should be written now. */
+export function insightsDue(s: DeepDivesState): boolean {
+  if (!s.analysis) return s.total >= MIN_CHECKINS;
+  return Date.now() - Date.parse(s.analysis.created_at) >= DAYS_BETWEEN * DAY_MS && s.newSince >= NEW_CHECKINS_FOR_REFRESH;
+}
+
+// One generation at a time per app session, even if several screens ask.
+let generating: Promise<void> | null = null;
+
+export type WeeklyStatus =
+  | { status: 'loading' }
+  | { status: 'locked'; total: number }
+  | { status: 'preparing' }
+  | { status: 'ready'; analysis: Analysis; fresh: boolean };
+
+/**
+ * The Weekly Insights for the Today card: loads the latest, and if new ones
+ * are due, writes them in the background (no button needed).
+ */
+export function useWeeklyInsights(): WeeklyStatus {
+  const [state, setState] = useState<WeeklyStatus>({ status: 'loading' });
+  const load = useCallback(() => {
+    let cancelled = false;
+    const show = async () => {
+      const analysis = await fetchLatestAnalysis();
+      const [total, newSince] = await Promise.all([
+        countCheckins(),
+        analysis ? countCheckins(analysis.created_at) : Promise.resolve(0),
+      ]);
+      return { analysis, total, newSince };
+    };
+    const toStatus = (s: DeepDivesState): WeeklyStatus =>
+      s.analysis
+        ? { status: 'ready', analysis: s.analysis, fresh: Date.now() - Date.parse(s.analysis.created_at) < 3 * DAY_MS }
+        : { status: 'locked', total: s.total };
+    show()
+      .then(async (s) => {
+        if (cancelled) return;
+        if (!insightsDue(s)) return setState(toStatus(s));
+        setState({ status: 'preparing' });
+        generating ??= generateDeepDives().finally(() => {
+          generating = null;
+        });
+        await generating.catch(() => {});
+        if (!cancelled) setState(toStatus(await show()));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  useFocusEffect(load);
+  return state;
 }
 
 /** The latest Today's Insight sentence, or null before the first analysis. */
