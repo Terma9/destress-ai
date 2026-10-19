@@ -1,14 +1,17 @@
 /**
  * Start screen: the logo, what the app does in one sentence, three color
- * fields for the three core features, and the user's name.
+ * fields for the three core features, and the user's name. Or, for an
+ * interviewer: "Explore the demo" loads Jonas's last four weeks (seed-demo)
+ * into this fresh account and opens Today.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { HaloLogo } from '@/components/brand';
+import { loadDemoData } from '@/ai/checkinClient';
+import { HaloLogo, SoftDots } from '@/components/brand';
 import { AiMark, FadeIn, PressableScale, Sheen } from '@/components/motion';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing, tints } from '@/theme';
@@ -24,6 +27,7 @@ export default function Start() {
   const { onboarded, setOnboarded, setName } = useAppStore();
   const insets = useSafeAreaInsets();
   const [nameInput, setNameInput] = useState('');
+  const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
 
   if (onboarded) return <Redirect href="/(tabs)/home" />;
 
@@ -31,6 +35,18 @@ export default function Start() {
     setName(nameInput.trim());
     setOnboarded(true);
     router.replace('/(tabs)/home');
+  };
+
+  const exploreDemo = async () => {
+    setDemo('loading');
+    try {
+      await loadDemoData();
+      setName('Jonas');
+      setOnboarded(true);
+      router.replace('/(tabs)/home');
+    } catch (err) {
+      setDemo({ error: (err as Error).message });
+    }
   };
 
   return (
@@ -91,6 +107,19 @@ export default function Start() {
               <Ionicons name="arrow-forward" size={18} color={colors.ivory} />
             </LinearGradient>
           </PressableScale>
+          <Pressable onPress={exploreDemo} disabled={demo === 'loading'} style={styles.demo} accessibilityLabel="Explore the demo">
+            {demo === 'loading' ? (
+              <View style={styles.demoRow}>
+                <SoftDots size={5} />
+                <Text style={styles.demoText}>Loading Jonas's last 4 weeks…</Text>
+              </View>
+            ) : (
+              <Text style={styles.demoText}>
+                Or <Text style={styles.demoLink}>explore the demo</Text> · Jonas, 4 weeks
+              </Text>
+            )}
+          </Pressable>
+          {typeof demo === 'object' && <Text style={styles.demoError}>{demo.error}</Text>}
         </FadeIn>
       </KeyboardAvoidingView>
     </LinearGradient>
@@ -98,6 +127,11 @@ export default function Start() {
 }
 
 const styles = StyleSheet.create({
+  demo: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.xs },
+  demoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  demoText: { ...font.body, color: colors.inkSoft },
+  demoLink: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
+  demoError: { ...font.small, color: colors.danger, textAlign: 'center' },
   container: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'space-between' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   textBlock: { alignItems: 'center', marginTop: -spacing.md },
