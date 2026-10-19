@@ -1,13 +1,16 @@
 /**
  * Untangle: two ways to deal with stress.
- *   Calm now       — stressed right now? A few minutes to slow down together.
- *   Stress solving — something keeps coming back? A plan that fits you.
+ *   Calm Now       — stressed right now? A few minutes to slow down together.
+ *   Stress Solving — something keeps coming back? A plan that fits you.
  * Below: "My plans" (one living plan per stressor) and "Solved": every
  * solved plan is a success story, which can be shared in the community.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withRepeat, withTiming } from 'react-native-reanimated';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { InlineLoader, Logo } from '@/components/brand';
 import { FadeIn, LivingGradient, PressableScale } from '@/components/motion';
 import { Card, Screen } from '@/components/ui';
@@ -24,55 +27,31 @@ export default function UntangleHome() {
 
   const plans = (sessions ?? []).filter((s) => s.kind === 'plan');
   const active = plans.filter((s) => s.status === 'active');
-  const calm = (sessions ?? []).filter((s) => s.kind === 'calm' && s.intensity_after !== null);
-  const avgDrop = calm.length
-    ? Math.round((calm.reduce((sum, s) => sum + (s.intensity_before - s.intensity_after!), 0) / calm.length) * 10) / 10
-    : null;
 
   return (
     <Screen>
       <Text style={styles.title}>Untangle</Text>
       <Text style={styles.sub}>Calm stress in the moment, or solve what keeps coming back</Text>
 
-      <FadeIn style={{ marginTop: spacing.lg, gap: spacing.md }}>
-        <PressableScale onPress={() => router.push('/untangle/calm')} accessibilityLabel="Calm now">
-          <LivingGradient colors={[fields.stress.from, fields.stress.to, fields.stress.from]} style={styles.mode} speed={9000}>
-            <View style={styles.modeHead}>
-              <View style={[styles.modeIcon, { backgroundColor: 'rgba(255,255,255,0.7)' }]}>
-                <Ionicons name="leaf-outline" size={18} color={fields.stress.deep} />
-              </View>
-              <Text style={[styles.modeTitle, { color: fields.stress.ink }]}>Calm now</Text>
-              <Ionicons name="arrow-forward" size={18} color={fields.stress.ink} />
-            </View>
-            <Text style={[styles.modeText, { color: fields.stress.ink }]}>
-              Stressed right now? Slow down together in a few minutes, with small exercises and tips.
-            </Text>
-            {avgDrop !== null && (
-              <Text style={[styles.modeStat, { color: fields.stress.deep }]}>
-                {calm.length}× used · stress {avgDrop > 0 ? `−${avgDrop}` : avgDrop} on average
-              </Text>
-            )}
-          </LivingGradient>
-        </PressableScale>
-
-        <PressableScale onPress={() => router.push('/untangle/new')} accessibilityLabel="Stress solving">
-          <LivingGradient colors={[fields.sleep.from, fields.sleep.to, fields.sleep.from]} style={styles.mode} speed={11000}>
-            <View style={styles.modeHead}>
-              <View style={[styles.modeIcon, { backgroundColor: 'rgba(255,255,255,0.7)' }]}>
-                <Ionicons name="git-branch-outline" size={18} color={fields.sleep.deep} />
-              </View>
-              <Text style={[styles.modeTitle, { color: fields.sleep.ink }]}>Stress solving</Text>
-              <Ionicons name="arrow-forward" size={18} color={fields.sleep.ink} />
-            </View>
-            <Text style={[styles.modeText, { color: fields.sleep.ink }]}>
-              Something keeps stressing you? Work out a plan that fits you, based on your check-ins and patterns.
-            </Text>
-          </LivingGradient>
-        </PressableScale>
+      <FadeIn style={styles.tiles}>
+        <ModeTile
+          title="Calm Now"
+          line="Calm down in a few minutes"
+          field={fields.stress}
+          visual={<BreathingOrb color={fields.stress.deep} />}
+          onPress={() => router.push('/untangle/calm')}
+        />
+        <ModeTile
+          title="Stress Solving"
+          line="Solve what keeps coming back"
+          field={fields.mood}
+          visual={<UntangledLine color={fields.mood.deep} />}
+          onPress={() => router.push('/untangle/new')}
+        />
       </FadeIn>
 
       <FadeIn delay={150} style={{ marginTop: spacing.xl }}>
-        <Text style={styles.label}>MY PLANS</Text>
+        <Text style={styles.heading}>My plans</Text>
         <Text style={styles.sectionHint}>One plan per stressor. Give updates, and the plan grows with you.</Text>
         {error ? (
           <Text style={styles.note}>Couldn't load your plans. Check your connection.</Text>
@@ -81,7 +60,7 @@ export default function UntangleHome() {
         ) : active.length === 0 ? (
           <Card style={styles.empty}>
             <Logo size={40} />
-            <Text style={styles.note}>No plans yet. Start with Stress solving when something keeps coming back.</Text>
+            <Text style={styles.note}>No plans yet. Start with Stress Solving when something keeps coming back.</Text>
           </Card>
         ) : (
           <View style={{ gap: spacing.sm }}>
@@ -94,7 +73,7 @@ export default function UntangleHome() {
 
       {stories && stories.length > 0 && (
         <FadeIn delay={280} style={{ marginTop: spacing.xl }}>
-          <Text style={styles.label}>SOLVED</Text>
+          <Text style={styles.heading}>Solved</Text>
           <Text style={styles.sectionHint}>Every solved plan becomes your success story. Share it if you like.</Text>
           <View style={{ gap: spacing.sm }}>
             {stories.map((st) => (
@@ -118,6 +97,68 @@ export default function UntangleHome() {
         </FadeIn>
       )}
     </Screen>
+  );
+}
+
+type Field = { from: string; to: string; ink: string; deep: string };
+
+/** One of the two ways in: a big tile with a small animation that shows what it does. */
+function ModeTile({ title, line, field, visual, onPress }: { title: string; line: string; field: Field; visual: ReactNode; onPress: () => void }) {
+  return (
+    <PressableScale onPress={onPress} accessibilityLabel={title} style={{ flex: 1 }}>
+      <LivingGradient colors={[field.from, field.to, field.from]} style={styles.tile} speed={10000}>
+        <View style={styles.visual}>{visual}</View>
+        <View>
+          <Text style={[styles.tileTitle, { color: field.ink }]}>{title}</Text>
+          <Text style={[styles.tileLine, { color: field.ink }]}>{line}</Text>
+        </View>
+        <View style={styles.tileArrow}>
+          <Ionicons name="arrow-forward" size={16} color={field.deep} />
+        </View>
+      </LivingGradient>
+    </PressableScale>
+  );
+}
+
+/** Calm Now: an orb that slowly grows and shrinks, like a calm breath. */
+function BreathingOrb({ color }: { color: string }) {
+  const breath = useSharedValue(0);
+  useEffect(() => {
+    breath.value = withRepeat(withTiming(1, { duration: 4000, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, []);
+  const halo = useAnimatedStyle(() => ({ transform: [{ scale: 0.75 + breath.value * 0.35 }], opacity: 0.35 - breath.value * 0.15 }));
+  const core = useAnimatedStyle(() => ({ transform: [{ scale: 0.9 + breath.value * 0.12 }] }));
+  return (
+    <View style={styles.orbBox}>
+      <Reanimated.View style={[styles.orbHalo, { backgroundColor: color }, halo]} />
+      <Reanimated.View style={[styles.orbCore, { backgroundColor: color }, core]}>
+        <Ionicons name="leaf" size={18} color="#FFFFFF" />
+      </Reanimated.View>
+    </View>
+  );
+}
+
+/** Stress Solving: a tangled line that becomes straight, with a dot at the goal. */
+function UntangledLine({ color }: { color: string }) {
+  const pulse = useSharedValue(0);
+  useEffect(() => {
+    pulse.value = withRepeat(withTiming(1, { duration: 1600, easing: Easing.inOut(Easing.ease) }), -1, true);
+  }, []);
+  const dot = useAnimatedStyle(() => ({ transform: [{ scale: 1 + pulse.value * 0.35 }], opacity: 0.25 + pulse.value * 0.2 }));
+  return (
+    <View style={{ width: 96, height: 56 }}>
+      <Svg width={96} height={56} viewBox="0 0 96 56">
+        <Path
+          d="M6 34 C 12 10, 30 10, 24 30 S 8 46, 20 44 S 40 18, 44 30 S 56 28, 62 28 L 82 28"
+          stroke={color}
+          strokeWidth={3}
+          strokeLinecap="round"
+          fill="none"
+        />
+        <Circle cx={84} cy={28} r={5} fill={color} />
+      </Svg>
+      <Reanimated.View style={[styles.goalPulse, { backgroundColor: color }, dot]} />
+    </View>
   );
 }
 
@@ -151,12 +192,35 @@ function PlanCard({ session: s, onPress }: { session: UntangleSession; onPress: 
 const styles = StyleSheet.create({
   title: { ...font.h1, color: colors.ink },
   sub: { ...font.body, color: colors.textMuted, marginTop: 2 },
-  mode: { borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', ...shadow.soft },
-  modeHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  modeIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
-  modeTitle: { fontFamily: fontFamily.bold, fontSize: 18, flex: 1 },
-  modeText: { ...font.small, lineHeight: 18, marginTop: spacing.sm, opacity: 0.85 },
-  modeStat: { fontFamily: fontFamily.semibold, fontSize: 12, marginTop: spacing.sm },
+  tiles: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
+  tile: {
+    minHeight: 210,
+    borderRadius: radii.lg,
+    padding: spacing.md,
+    paddingTop: spacing.lg,
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.7)',
+    ...shadow.card,
+  },
+  visual: { height: 64, justifyContent: 'center' },
+  tileTitle: { fontFamily: fontFamily.bold, fontSize: 19, letterSpacing: -0.3, marginTop: spacing.md },
+  tileLine: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 17, marginTop: 4, opacity: 0.8 },
+  tileArrow: {
+    alignSelf: 'flex-end',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.75)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.md,
+  },
+  orbBox: { width: 64, height: 64, alignItems: 'center', justifyContent: 'center' },
+  orbHalo: { position: 'absolute', width: 64, height: 64, borderRadius: 32 },
+  orbCore: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  goalPulse: { position: 'absolute', left: 74, top: 18, width: 20, height: 20, borderRadius: 10 },
+  heading: { fontFamily: fontFamily.bold, fontSize: 22, letterSpacing: -0.3, color: colors.ink },
   label: { ...font.label, color: colors.textMuted },
   sectionHint: { ...font.small, color: colors.textFaint, marginTop: 2, marginBottom: spacing.md },
   note: { ...font.body, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },

@@ -1,5 +1,5 @@
 /**
- * Stress solving: work out a well-founded plan for something that keeps
+ * Stress Solving: work out a well-founded plan for something that keeps
  * stressing you, together with the AI and everything it knows about you.
  *
  * New plan:      intake (what, how much it weighs) → questions → "Make my plan"
@@ -131,7 +131,7 @@ export default function StressSolving() {
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            {title ?? 'Stress solving'}
+            {title ?? 'Stress Solving'}
           </Text>
           <AiMark label={sessionId ? 'HOW IS YOUR PLAN GOING?' : 'A PLAN THAT FITS YOU'} size={11} />
         </View>

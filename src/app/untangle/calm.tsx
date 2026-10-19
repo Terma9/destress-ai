@@ -1,5 +1,5 @@
 /**
- * Calm now: a short conversation whose only goal is that the user feels
+ * Calm Now: a short conversation whose only goal is that the user feels
  * calmer by the end. Small tips are fine, plans are not (that's Stress
  * solving). The AI may point to one of the user's plans.
  *
@@ -9,7 +9,7 @@
  *             doesn't suggest breathing again)
  *   talk   — the calming conversation (untangle-chat, mode 'calm')
  *   rate   — "How intense is it now?", saved with the conversation
- *   done   — before → after, plus a way into Stress solving
+ *   done   — before → after, plus a way into Stress Solving
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -103,7 +103,7 @@ export default function CalmNow() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Calm now</Text>
+          <Text style={styles.headerTitle}>Calm Now</Text>
           <AiMark label="SLOWING DOWN TOGETHER" size={11} />
         </View>
         <Pressable onPress={() => router.back()} hitSlop={10} accessibilityLabel="Close" style={styles.close}>
@@ -163,7 +163,7 @@ export default function CalmNow() {
 
           <Animated.View entering={FadeInDown.duration(420).delay(350)} style={{ alignSelf: 'stretch', gap: spacing.sm }}>
             <PressableScale onPress={() => router.replace('/untangle/new')} style={styles.secondary}>
-              <Text style={styles.secondaryText}>Does this keep coming back? Start Stress solving</Text>
+              <Text style={styles.secondaryText}>Does this keep coming back? Start Stress Solving</Text>
             </PressableScale>
             <PressableScale onPress={() => router.back()}>
               <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primary}>

@@ -117,8 +117,8 @@ export async function streamCheckinReply(
 }
 
 /**
- * Streams the AI's next Untangle reply. mode 'calm' = Calm now; 'plan' =
- * Stress solving (with sessionId: talking about an existing plan).
+ * Streams the AI's next Untangle reply. mode 'calm' = Calm Now; 'plan' =
+ * Stress Solving (with sessionId: talking about an existing plan).
  */
 export async function streamUntangleReply(
   messages: ChatMessage[],

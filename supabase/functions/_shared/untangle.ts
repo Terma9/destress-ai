@@ -28,7 +28,7 @@ export type UntangleContext = {
     steps: { text: string; done: boolean }[];
     outcome: string | null;
   }[];
-  /** Their active stress-solving plans, so Calm now can point to one. */
+  /** Their active stress-solving plans, so Calm Now can point to one. */
   activePlans: { title: string; problem: string }[];
   /** Past check-ins about similar situations, labelled E1, E2, … for citing. */
   related: (RelatedConversation & { ref: string })[];
@@ -97,7 +97,7 @@ function formatContext(ctx: UntangleContext): string {
   const list = (items: string[], empty: string) => (items.length ? items.map((i) => `- ${i}`).join('\n') : empty);
   const sessions = ctx.pastSessions.map((s) => {
     const steps = s.steps.map((st) => `${st.done ? '✓' : '✗'} ${st.text}`).join('; ');
-    const what = s.kind === 'calm' ? 'Calm now session' : `Plan. Steps: ${steps || '–'}`;
+    const what = s.kind === 'calm' ? 'Calm Now session' : `Plan. Steps: ${steps || '–'}`;
     return `"${s.title}": intensity ${s.before} → ${s.after ?? '?'}/10. ${what}${s.outcome ? ` · what helped: ${s.outcome}` : ''}`;
   });
   const related = ctx.related.map(
@@ -113,7 +113,7 @@ ${list(ctx.findings, 'None yet.')}
 ## Their answers to reflection questions
 ${list(ctx.reflections.map((r) => `Q: ${r.question} A: ${r.answer}`), 'None yet.')}
 
-## Earlier Calm now sessions and plans, and how they worked out (✓ = step done)
+## Earlier Calm Now sessions and plans, and how they worked out (✓ = step done)
 ${list(sessions, 'None yet.')}
 
 ## Related past check-ins (found by meaning)
@@ -127,10 +127,10 @@ export function formatPlan(plan: Plan): string {
   return `${plan.approach ? `Approach: ${plan.approach}\n` : ''}${steps}`;
 }
 
-/** "Calm now": calm the user down during this conversation. Small tips, no plan. */
+/** "Calm Now": calm the user down during this conversation. Small tips, no plan. */
 export function buildCalmPrompt(ctx: UntangleContext, intensity: number, breathed = false): string {
   const plans = ctx.activePlans.map((p) => `- "${p.title}": ${p.problem}`).join('\n');
-  return `You are Destress AI in "Calm now": the user is stressed right now (${intensity}/10 when they started). Your only goal is that they feel calmer by the end of this short conversation.
+  return `You are Destress AI in "Calm Now": the user is stressed right now (${intensity}/10 when they started). Your only goal is that they feel calmer by the end of this short conversation.
 
 ## How to help
 - Their first message describes what is stressing them. Base every reply on that and on what they say next; never be generic.
@@ -143,7 +143,7 @@ export function buildCalmPrompt(ctx: UntangleContext, intensity: number, breathe
   3. Short, practical tips for their exact situation, ideally ones that helped them before (see below), e.g. what can wait until tomorrow, the one next small thing.
 - Keep it a conversation, not a lecture. Every reply is at most 2 short sentences and ends with one short question, or with one small thing to do and "Tell me when you're done." Don't stack support, an exercise and a tip in one reply.
 - Let them talk: ask about what they just said before moving on. No plans, no to-do lists, no problem-solving sessions.
-- If what they describe matches one of their active plans below, mention that plan once by its title (they can open it later under "My plans"). If it sounds like something that keeps coming back and has no plan, you may suggest once, near the end, to work on it later with "Stress solving".
+- If what they describe matches one of their active plans below, mention that plan once by its title (they can open it later under "My plans"). If it sounds like something that keeps coming back and has no plan, you may suggest once, near the end, to work on it later with "Stress Solving".
 - When they sound calmer, say so gently and invite them to tap "I feel calmer".
 - Reply in the language the user writes in.
 
@@ -157,7 +157,7 @@ ${CRISIS_RULE}
 ${formatContext(ctx)}`;
 }
 
-/** "Stress solving": understand a recurring stressor (before the first plan) or hear how the plan goes (later). */
+/** "Stress Solving": understand a recurring stressor (before the first plan) or hear how the plan goes (later). */
 export function buildUntangleChatPrompt(
   ctx: UntangleContext,
   intensity: number,
@@ -165,7 +165,7 @@ export function buildUntangleChatPrompt(
   currentPlan: Plan | null = null,
 ): string {
   if (currentPlan) {
-    return `You are Destress AI in "Stress solving". The user is coming back to their plan for a stressor to tell you how it's going. Their plan right now:
+    return `You are Destress AI in "Stress Solving". The user is coming back to their plan for a stressor to tell you how it's going. Their plan right now:
 ${formatPlan(currentPlan)}
 
 ## How to talk
@@ -190,7 +190,7 @@ ${formatContext(ctx)}`;
         ? 'Ask your next question. It is too early for a plan.'
         : `Do you know enough now? You know enough when you understand (1) when and how often it happens and what triggers it, (2) what is in their control, and (3) what they have tried and what helped or made it worse. If yes: briefly reflect what you understood in one or two sentences, tell them to tap "Make my plan", and end your message with [[ready]]. If not: ask about what is still missing (at most ${MAX_QUESTIONS - answered} more questions).`;
 
-  return `You are Destress AI in "Stress solving": together with the user you work out a well-founded plan for something that keeps stressing them. It weighs on them ${intensity}/10.
+  return `You are Destress AI in "Stress Solving": together with the user you work out a well-founded plan for something that keeps stressing them. It weighs on them ${intensity}/10.
 
 ## Your job in this conversation
 - Understand the stressor well enough for a plan that really fits them: when and how often it happens, what triggers it, what is in their control, what they have tried and what helped or made it worse.

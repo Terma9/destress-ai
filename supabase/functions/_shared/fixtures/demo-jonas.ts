@@ -139,7 +139,7 @@ export const checkins: DemoCheckin[] = [
     ),
   },
 
-  // ─── Week 2: same pattern, first walks, Calm now ────────────────────────
+  // ─── Week 2: same pattern, first walks, Calm Now ────────────────────────
   {
     key: 'w2-mon', week: 2, weekday: 1, title: 'A pitch deck by tomorrow',
     summary: 'At 6 pm Markus asked for a pitch deck by the next day. You said yes again. You worked until 9:30 pm.',
@@ -157,14 +157,14 @@ export const checkins: DemoCheckin[] = [
   },
   {
     key: 'w2-tue', week: 2, weekday: 2, title: 'Five hours again',
-    summary: 'You slept about 5 hours after the late evening. You made a sleep plan in Stress solving.',
+    summary: 'You slept about 5 hours after the late evening. You made a sleep plan in Stress Solving.',
     mood: 'low', stress: 6, sleep: 5, emotion: 4, themes: ['sleep'], helped: [],
     reasons: { stress: 'Tired, and the deck was due.', sleep: 'About 5 hours. You lay awake again.', mood: 'Tired, but glad to have a plan.' },
     messages: chat(
       'Hi Jonas, how did you sleep?',
       "5 hours. Again. Every time I work late, I can't fall asleep.",
       "That's a clear pattern. What do you want to do about it?",
-      'I made a sleep plan in Stress solving today.',
+      'I made a sleep plan in Stress Solving today.',
       "Nice. What's in it?",
       'Walks after work. Phone out of the bedroom. And a note by the bed for thoughts that keep me awake.',
       "That's clear and easy to try. I'm curious how the next nights go.",
@@ -172,16 +172,16 @@ export const checkins: DemoCheckin[] = [
   },
   {
     key: 'w2-wed', week: 2, weekday: 3, title: 'Markus presented my work',
-    summary: 'In a client meeting Markus showed your pitch deck as his own work. Calm now helped: your stress went from 8 to 4.',
-    mood: 'stressed', stress: 8, sleep: 6, emotion: 3, themes: ['work'], helped: ['Calm now', 'Writing down what you want to say'],
-    reasons: { stress: 'Markus presented your work as his own.', sleep: 'About 6 hours.', mood: 'Hurt and angry. Calmer after Calm now.' },
+    summary: 'In a client meeting Markus showed your pitch deck as his own work. Calm Now helped: your stress went from 8 to 4.',
+    mood: 'stressed', stress: 8, sleep: 6, emotion: 3, themes: ['work'], helped: ['Calm Now', 'Writing down what you want to say'],
+    reasons: { stress: 'Markus presented your work as his own.', sleep: 'About 6 hours.', mood: 'Hurt and angry. Calmer after Calm Now.' },
     messages: chat(
       'Hi Jonas, how was your day?',
       'The worst this month. In the client meeting Markus showed MY pitch deck as his work. He did not mention me once.',
       "That really hurts. Especially after you worked late for it. How did you feel?",
       'I was shaking afterwards.',
       'And how are you now?',
-      'Better. I did Calm now right after. I wrote down what I want to say to him. My stress went from 8 to 4.',
+      'Better. I did Calm Now right after. I wrote down what I want to say to him. My stress went from 8 to 4.',
       "That's a big change. You don't have to decide anything tonight. What would help this evening?",
       'Cooking something. Going to bed early.',
       'Sounds right. Take care, Jonas.',
@@ -241,7 +241,7 @@ export const checkins: DemoCheckin[] = [
       'Hi Jonas, how was your Monday?',
       "I slept great. Then at 5:30 Markus asked for a 'quick favour'. I said yes. I worked until 9.",
       'How do you feel about it?',
-      "I'm done with this. So I made a plan in Stress solving tonight: saying no to Markus.",
+      "I'm done with this. So I made a plan in Stress Solving tonight: saying no to Markus.",
       "That's a big step. What's the first part of the plan?",
       "Next time he asks late, I say: 'I can do it tomorrow morning.' I wrote the sentence down.",
       'Having the sentence ready makes it much easier. Good luck, Jonas.',
@@ -536,7 +536,7 @@ export const analysis = {
 // ─── Untangle ─────────────────────────────────────────────────────────────
 
 /**
- * Calm now, at work right after the meeting (week 2, Wednesday). At 8 the
+ * Calm Now, at work right after the meeting (week 2, Wednesday). At 8 the
  * app guides one minute of breathing first, so the chat starts after it.
  */
 export const calmSession = {
@@ -561,7 +561,7 @@ export const calmSession = {
 
 const steps = (...items: [string, number, boolean][]) => items.map(([text, minutes, done]) => ({ text, minutes, done }));
 
-/** Stress solving, solved: falling asleep (made week 2 Tuesday, solved week 4 Thursday). */
+/** Stress Solving, solved: falling asleep (made week 2 Tuesday, solved week 4 Thursday). */
 export const sleepPlan = {
   week: 2, weekday: 2, solvedWeek: 4, solvedWeekday: 4, before: 7, after: 3,
   title: 'Falling asleep after stressful days',
@@ -603,7 +603,7 @@ export const sleepPlan = {
   },
 };
 
-/** Stress solving, active: saying no to the boss (made week 3 Monday). */
+/** Stress Solving, active: saying no to the boss (made week 3 Monday). */
 export const bossPlan = {
   week: 3, weekday: 1, before: 8, after: 3,
   title: 'Saying no to my boss',

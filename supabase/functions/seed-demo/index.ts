@@ -6,7 +6,7 @@
  * Response: { inserted } — the number of check-ins added.
  *
  * Loads every feature's data: check-ins + calendar values, the AI's memory,
- * last week's Weekly Insights, a Calm now session, two Stress solving plans
+ * last week's Weekly Insights, a Calm Now session, two Stress Solving plans
  * (one active, one solved) and the solved plan's story in the community with comments.
  * Only works on accounts without check-ins, so real entries never mix with demo data.
  */
@@ -143,7 +143,7 @@ export default {
       );
     }
 
-    // ─── Untangle: Calm now + two plans ───────────────────────────────────
+    // ─── Untangle: Calm Now + two plans ───────────────────────────────────
     const calm = demo.calmSession;
     const boss = demo.bossPlan;
     const sleep = demo.sleepPlan;

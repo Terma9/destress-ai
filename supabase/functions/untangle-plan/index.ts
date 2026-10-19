@@ -1,5 +1,5 @@
 /**
- * untangle-plan — turns a Stress solving conversation into a saved plan, or
+ * untangle-plan — turns a Stress Solving conversation into a saved plan, or
  * updates an existing one (sessionId); the old version goes to plan_history.
  *
  * Request:  POST { messages: [...], intensity: 0–10, sessionId? }

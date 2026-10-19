@@ -4,8 +4,8 @@
  * Request:  POST { messages: [...], intensity: 0–10, mode: 'calm' | 'plan', sessionId?, breathed? }
  * Response: the AI's reply, streamed as plain text.
  *
- * calm — "Calm now": calming, small tips, no plan.
- * plan — "Stress solving": questions until "Make my plan"; with sessionId the
+ * calm — "Calm Now": calming, small tips, no plan.
+ * plan — "Stress Solving": questions until "Make my plan"; with sessionId the
  *        user is telling how their existing plan goes.
  */
 import { withSupabase } from 'npm:@supabase/server@1';

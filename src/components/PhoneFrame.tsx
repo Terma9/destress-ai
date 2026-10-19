@@ -52,14 +52,14 @@ const FEATURES = [
     icon: 'leaf-outline',
     tint: fields.mood.from,
     ink: fields.mood.deep,
-    title: 'Untangle · Calm now',
+    title: 'Untangle · Calm Now',
     text: 'Stressed right now? The app calms you down step by step, with exercises and tips picked from what has helped you before.',
   },
   {
     icon: 'git-branch-outline',
     tint: fields.sleep.from,
     ink: fields.sleep.deep,
-    title: 'Untangle · Stress solving',
+    title: 'Untangle · Stress Solving',
     text: "Stress that keeps coming back? The app first finds out what's behind it, then makes a plan with you based on your own history. As you go, the plan adapts.",
   },
   {

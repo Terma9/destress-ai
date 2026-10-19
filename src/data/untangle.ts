@@ -1,7 +1,7 @@
 /**
  * Untangle sessions as stored in Supabase, in two kinds:
- *   calm — "Calm now": a calming conversation with a before/after rating
- *   plan — "Stress solving": one living plan per stressor ("My plans")
+ *   calm — "Calm Now": a calming conversation with a before/after rating
+ *   plan — "Stress Solving": one living plan per stressor ("My plans")
  * Making or updating a plan goes through the untangle-plan Edge Function (it
  * calls the AI); saving a calm session, ticking off steps and marking a plan
  * solved are plain RLS-protected writes.
@@ -85,9 +85,9 @@ export async function saveThread(id: string, messages: ChatMessage[]) {
   if (error) throw new Error(error.message);
 }
 
-/** Saves a finished Calm now conversation with how intense it was before and after. */
+/** Saves a finished Calm Now conversation with how intense it was before and after. */
 export async function saveCalmSession(messages: ChatMessage[], before: number, after: number) {
-  const first = messages.find((m) => m.role === 'user')?.content.trim() ?? 'Calm now';
+  const first = messages.find((m) => m.role === 'user')?.content.trim() ?? 'Calm Now';
   const { error } = await supabase.from('untangle_sessions').insert({
     kind: 'calm',
     title: first.length > 60 ? `${first.slice(0, 57)}…` : first,
