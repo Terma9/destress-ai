@@ -8,7 +8,7 @@ import { Redirect, useRouter } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LivingLogo } from '@/components/brand';
+import { HaloLogo } from '@/components/brand';
 import { AiMark, FadeIn, PressableScale, Sheen } from '@/components/motion';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing, tints } from '@/theme';
@@ -45,7 +45,7 @@ export default function Start() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.center}>
           <FadeIn>
-            <LivingLogo size={140} />
+            <HaloLogo size={140} />
           </FadeIn>
 
           <FadeIn delay={150} style={styles.textBlock}>

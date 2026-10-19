@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { InlineLoader } from '@/components/brand';
 import { Card, EmptyState, GradientCard, Screen, SectionHeader } from '@/components/ui';
 import { intensityColor } from '@/components/untangle';
 import { THEME_LABELS, useMyStories } from '@/data/community';
@@ -62,7 +63,7 @@ export default function UntangleHome() {
           caption="Check your connection and come back to this tab."
         />
       ) : sessions === null ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <InlineLoader />
       ) : sessions.length === 0 ? (
         <EmptyState
           icon={<Ionicons name="compass-outline" size={32} color={colors.textFaint} />}

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { InlineLoader, SoftDots } from '@/components/brand';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
 import { moodEmoji } from '@/data/checkins';
 import {
@@ -54,7 +55,7 @@ export default function DeepDiveDetail() {
     return (
       <Screen>
         {back}
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <InlineLoader />
       </Screen>
     );
   }
@@ -200,7 +201,7 @@ function Reflection({
       {(changed || status === 'error') && (
         <Pressable style={styles.saveBtn} onPress={save} disabled={status === 'saving'}>
           {status === 'saving' ? (
-            <ActivityIndicator color={colors.white} size="small" />
+            <SoftDots color={colors.white} size={6} />
           ) : (
             <Text style={styles.saveText}>{status === 'error' ? "Couldn't save — retry" : 'Save answer'}</Text>
           )}

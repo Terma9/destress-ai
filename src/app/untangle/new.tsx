@@ -11,7 +11,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -21,6 +20,7 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { BreathingLogo } from '@/components/brand';
 import { type ChatMessage, createUntanglePlan, streamUntangleReply } from '@/ai/checkinClient';
 import { MessageBubble, TypingBubble, VoiceComposer } from '@/components/chat';
 import { BreathingPause, IntensityPicker } from '@/components/untangle';
@@ -106,7 +106,7 @@ export default function UntangleFlow() {
         <BreathingPause onDone={afterCalm} />
       ) : stage === 'planning' ? (
         <View style={styles.center}>
-          <ActivityIndicator color={colors.purple} size="large" />
+          <BreathingLogo size={72} />
           <Text style={styles.centerTitle}>Making your plan…</Text>
           <Text style={styles.centerSub}>Looking at what helped you in similar moments before.</Text>
         </View>

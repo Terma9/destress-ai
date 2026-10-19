@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { InlineLoader, SoftDots } from '@/components/brand';
 import { generateDeepDives, loadDemoData } from '@/ai/checkinClient';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen } from '@/components/ui';
 import {
@@ -52,10 +53,10 @@ export default function DeepDives() {
             caption="Check your connection and come back to this screen."
           />
         ) : !state ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+          <InlineLoader />
         ) : busy === 'analyzing' ? (
           <GradientCard colors={gradients.aiAnalysis}>
-            <ActivityIndicator color={colors.white} />
+            <SoftDots color={colors.white} size={6} />
             <Text style={[styles.heroBody, { textAlign: 'center', marginTop: spacing.md }]}>
               Reading your {state.total} check-ins and looking for patterns. This takes about half a minute.
             </Text>
@@ -84,7 +85,7 @@ export default function DeepDives() {
             {state.total === 0 && (
               <Pressable style={styles.linkBtn} onPress={() => run('demo')} disabled={busy !== 'idle'}>
                 {busy === 'demo' ? (
-                  <ActivityIndicator color={colors.purple} />
+                  <SoftDots size={6} />
                 ) : (
                   <Text style={styles.linkText}>Or try it with 3 weeks of demo data</Text>
                 )}

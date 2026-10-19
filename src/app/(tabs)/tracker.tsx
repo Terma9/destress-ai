@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
+import { InlineLoader } from '@/components/brand';
 import { Card, Chip, GradientCard, Screen } from '@/components/ui';
 import { type MetricKey, metrics as metricsMeta } from '@/data/content';
 import { average, type DailyMetric, lastSevenDays, useDailyMetrics } from '@/data/metrics';
@@ -22,7 +23,7 @@ export default function Tracker() {
       {error && <Text style={styles.error}>Couldn't load or save your values. Check your connection.</Text>}
 
       {rows === null && !error ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+        <InlineLoader />
       ) : (
         <>
           <View style={{ gap: spacing.md, marginTop: spacing.lg }}>

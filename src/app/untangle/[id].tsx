@@ -6,7 +6,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { InlineLoader, SoftDots } from '@/components/brand';
 import { CrisisCard } from '@/components/chat';
 import { Card, EmptyState, GradientCard, Screen, SectionHeader } from '@/components/ui';
 import { IntensityPicker, intensityColor } from '@/components/untangle';
@@ -58,7 +59,7 @@ export default function UntanglePlan() {
     return (
       <Screen>
         {back}
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <InlineLoader />
       </Screen>
     );
   }
@@ -188,7 +189,7 @@ export default function UntanglePlan() {
               style={[styles.saveBtn, (after === null || saving) && { opacity: 0.45 }]}
               disabled={after === null || saving}
               onPress={saveAfter}>
-              {saving ? <ActivityIndicator color={colors.white} /> : <Text style={styles.saveText}>Save</Text>}
+              {saving ? <SoftDots color={colors.white} size={6} /> : <Text style={styles.saveText}>Save</Text>}
             </Pressable>
             {saveError && <Text style={styles.error}>{saveError}</Text>}
           </>

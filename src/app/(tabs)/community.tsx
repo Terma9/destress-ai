@@ -2,16 +2,20 @@
  * Community: anonymous success stories — a situation, what helped, and how
  * much the stress dropped. "For you" ranks them by similarity to the topics
  * of the user's own check-ins (embeddings). Votes: "helpful" is counted and
- * shown; "not for me" only lowers the ranking and is never displayed.
+ * shown. "Not for me" and "Report" take the story out of this user's feed
+ * (the card slides away, with an undo for "not for me"); a downvote also
+ * lowers the ranking for everyone but is never displayed.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Card, EmptyState, Screen } from '@/components/ui';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeInDown, FadeOutDown, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
+import { InlineLoader } from '@/components/brand';
+import { Card, EmptyState, Screen, TAB_BAR_SPACE } from '@/components/ui';
 import { intensityColor } from '@/components/untangle';
 import { type FeedStory, fetchFeed, reportStory, THEME_LABELS, voteStory } from '@/data/community';
-import { colors, font, radii, spacing } from '@/theme';
+import { colors, font, fontFamily, radii, shadow, spacing } from '@/theme';
 
 const THEMES = ['study', 'work', 'sleep', 'family', 'relationships', 'social', 'health', 'money'];
 
@@ -21,6 +25,16 @@ export default function Community() {
   const [theme, setTheme] = useState<string | null>(null);
   const [stories, setStories] = useState<FeedStory[] | null>(null);
   const [error, setError] = useState(false);
+  /** The story just taken out of the feed, for the undo bar. */
+  const [removed, setRemoved] = useState<{ story: FeedStory; index: number; reason: 'vote' | 'report' } | null>(null);
+  const dismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    },
+    [],
+  );
 
   const load = useCallback(() => {
     fetchFeed({ theme, forMe: mode === 'forMe' })
@@ -32,13 +46,12 @@ export default function Community() {
   }, [mode, theme]);
   useFocusEffect(load);
 
-  /** Updates the vote right away and saves it in the background (rolled back on failure). */
-  async function vote(story: FeedStory, value: -1 | 1) {
-    const next = story.my_vote === value ? 0 : value;
-    const helpful = story.helpful - (story.my_vote === 1 ? 1 : 0) + (next === 1 ? 1 : 0);
-    const update = (s: Partial<FeedStory>) =>
-      setStories((list) => list && list.map((x) => (x.id === story.id ? { ...x, ...s } : x)));
-    update({ my_vote: next === 0 ? null : next, helpful });
+  /** "Helpful" toggles right away and saves in the background (rolled back on failure). */
+  async function markHelpful(story: FeedStory) {
+    const next = story.my_vote === 1 ? 0 : 1;
+    const update = (patch: Partial<FeedStory>) =>
+      setStories((list) => list && list.map((x) => (x.id === story.id ? { ...x, ...patch } : x)));
+    update({ my_vote: next === 0 ? null : 1, helpful: story.helpful + (next === 1 ? 1 : -1) });
     try {
       await voteStory(story.id, next);
     } catch {
@@ -46,8 +59,39 @@ export default function Community() {
     }
   }
 
+  /** Takes a story out of the feed (it slides away) and shows the undo bar for a few seconds. */
+  async function remove(story: FeedStory, reason: 'vote' | 'report') {
+    const index = stories?.findIndex((s) => s.id === story.id) ?? -1;
+    setStories((list) => list && list.filter((s) => s.id !== story.id));
+    setRemoved({ story, index, reason });
+    if (dismissTimer.current) clearTimeout(dismissTimer.current);
+    dismissTimer.current = setTimeout(() => setRemoved(null), 5000);
+    try {
+      await (reason === 'vote' ? voteStory(story.id, -1) : reportStory(story.id, 'Inappropriate'));
+    } catch {
+      restore(story, index);
+    }
+  }
+
+  function restore(story: FeedStory, index: number) {
+    setStories((list) => {
+      if (!list || list.some((s) => s.id === story.id)) return list;
+      const copy = [...list];
+      copy.splice(Math.max(0, Math.min(index, copy.length)), 0, story);
+      return copy;
+    });
+  }
+
+  async function undo() {
+    if (!removed) return;
+    setRemoved(null);
+    restore(removed.story, removed.index);
+    await voteStory(removed.story.id, 0).catch(() => {});
+  }
+
   return (
-    <Screen>
+    <View style={{ flex: 1 }}>
+      <Screen tint="sage">
       <Text style={styles.title}>Community</Text>
       <Text style={styles.sub}>What helped others in moments like yours</Text>
 
@@ -77,7 +121,7 @@ export default function Community() {
           caption="Check your connection and come back to this tab."
         />
       ) : stories === null ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <InlineLoader />
       ) : stories.length === 0 ? (
         <EmptyState
           icon={<Ionicons name="people-outline" size={32} color={colors.textFaint} />}
@@ -85,7 +129,11 @@ export default function Community() {
           caption="Try another topic."
         />
       ) : (
-        stories.map((s) => <StoryCard key={s.id} story={s} onVote={(v) => vote(s, v)} />)
+        stories.map((s) => (
+          <Animated.View key={s.id} exiting={FadeOutLeft.duration(260)} layout={LinearTransition.springify().damping(18)}>
+            <StoryCard story={s} onHelpful={() => markHelpful(s)} onRemove={(reason) => remove(s, reason)} />
+          </Animated.View>
+        ))
       )}
 
       <Card style={{ marginTop: spacing.sm }} onPress={() => router.push('/(tabs)/untangle')}>
@@ -97,12 +145,34 @@ export default function Community() {
           </Text>
         </View>
       </Card>
-    </Screen>
+      </Screen>
+      {removed && (
+        <Animated.View entering={FadeInDown.duration(260)} exiting={FadeOutDown.duration(200)} style={styles.toast}>
+          <Ionicons name={removed.reason === 'vote' ? 'eye-off-outline' : 'flag-outline'} size={16} color={colors.ivory} />
+          <Text style={styles.toastText}>
+            {removed.reason === 'vote' ? 'Hidden from your feed' : "Reported. You won't see it again."}
+          </Text>
+          {removed.reason === 'vote' && (
+            <Pressable onPress={undo} hitSlop={8}>
+              <Text style={styles.toastUndo}>Undo</Text>
+            </Pressable>
+          )}
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
-function StoryCard({ story, onVote }: { story: FeedStory; onVote: (v: -1 | 1) => void }) {
-  const [reporting, setReporting] = useState<'closed' | 'asking' | 'done'>('closed');
+function StoryCard({
+  story,
+  onHelpful,
+  onRemove,
+}: {
+  story: FeedStory;
+  onHelpful: () => void;
+  onRemove: (reason: 'vote' | 'report') => void;
+}) {
+  const [reporting, setReporting] = useState(false);
 
   return (
     <Card style={{ marginBottom: spacing.md }}>
@@ -126,41 +196,57 @@ function StoryCard({ story, onVote }: { story: FeedStory; onVote: (v: -1 | 1) =>
       {story.comment ? <Text style={styles.comment}>"{story.comment}"</Text> : null}
 
       <View style={styles.footer}>
-        <Pressable style={[styles.voteBtn, story.my_vote === 1 && styles.voteUp]} onPress={() => onVote(1)} disabled={story.is_mine}>
+        <Pressable style={[styles.voteBtn, story.my_vote === 1 && styles.voteUp]} onPress={onHelpful} disabled={story.is_mine}>
           <Ionicons name={story.my_vote === 1 ? 'thumbs-up' : 'thumbs-up-outline'} size={16} color={story.my_vote === 1 ? colors.white : colors.textMuted} />
           <Text style={[styles.voteText, story.my_vote === 1 && { color: colors.white }]}>
             Helpful{story.helpful ? ` · ${story.helpful}` : ''}
           </Text>
         </Pressable>
-        <Pressable style={[styles.voteBtn, story.my_vote === -1 && styles.voteDown]} onPress={() => onVote(-1)} disabled={story.is_mine}>
-          <Ionicons name={story.my_vote === -1 ? 'thumbs-down' : 'thumbs-down-outline'} size={16} color={colors.textMuted} />
-          <Text style={styles.voteText}>Not for me</Text>
-        </Pressable>
+        {!story.is_mine && (
+          <Pressable style={styles.voteBtn} onPress={() => onRemove('vote')}>
+            <Ionicons name="thumbs-down-outline" size={16} color={colors.textMuted} />
+            <Text style={styles.voteText}>Not for me</Text>
+          </Pressable>
+        )}
         <View style={{ flex: 1 }} />
-        {!story.is_mine && reporting === 'closed' && (
-          <Pressable onPress={() => setReporting('asking')} hitSlop={8} accessibilityLabel="Report">
+        {!story.is_mine && !reporting && (
+          <Pressable onPress={() => setReporting(true)} hitSlop={8} accessibilityLabel="Report">
             <Ionicons name="flag-outline" size={16} color={colors.textFaint} />
           </Pressable>
         )}
       </View>
-      {reporting === 'asking' && (
-        <View style={styles.reportRow}>
+      {reporting && (
+        <Animated.View entering={FadeInDown.duration(220)} style={styles.reportRow}>
           <Text style={[styles.situation, { flex: 1, marginTop: 0 }]}>Report this story as inappropriate?</Text>
-          <Pressable onPress={() => setReporting('closed')}>
+          <Pressable onPress={() => setReporting(false)}>
             <Text style={styles.reportCancel}>Cancel</Text>
           </Pressable>
-          <Pressable
-            onPress={() => reportStory(story.id, 'Inappropriate').then(() => setReporting('done')).catch(() => setReporting('closed'))}>
+          <Pressable onPress={() => onRemove('report')}>
             <Text style={styles.reportConfirm}>Report</Text>
           </Pressable>
-        </View>
+        </Animated.View>
       )}
-      {reporting === 'done' && <Text style={styles.reported}>Thanks. We'll take a look.</Text>}
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
+  toast: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
+    bottom: TAB_BAR_SPACE - 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.ink,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: 13,
+    ...shadow.lifted,
+  },
+  toastText: { flex: 1, fontFamily: fontFamily.medium, fontSize: 14, color: colors.ivory },
+  toastUndo: { fontFamily: fontFamily.bold, fontSize: 14, color: '#F0A57E' },
   title: { ...font.h1, color: colors.text },
   sub: { ...font.body, color: colors.textMuted, marginTop: 2 },
   segment: {
@@ -204,11 +290,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   voteUp: { backgroundColor: colors.green, borderColor: colors.green },
-  voteDown: { backgroundColor: colors.cardAlt },
   voteText: { ...font.small, color: colors.textMuted, fontWeight: '600' },
   reportRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginTop: spacing.md },
   reportCancel: { ...font.small, color: colors.textMuted, fontWeight: '600' },
   reportConfirm: { ...font.small, color: colors.danger, fontWeight: '700' },
-  reported: { ...font.small, color: colors.textFaint, marginTop: spacing.sm },
   shareRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
 });

@@ -1,18 +1,25 @@
 /**
- * The Destress AI logo. `Logo` is the plain mark; `LivingLogo` turns very
- * slowly and breathes inside a soft clay glow, for the start screen.
+ * The Destress AI logo, and the calm loading states built from it.
+ *
+ * Loading never spins here: a spinner signals "hurry", which is the
+ * opposite of what this app is for. Instead the logo breathes slowly
+ * (about one breath every 8 seconds) and three soft dots fade in turn.
  */
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import Animated, {
   Easing,
+  FadeIn,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withDelay,
   withRepeat,
+  withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { colors, fields, fontFamily } from '@/theme';
 
 const LOGO = require('../../assets/images/logo.png');
 
@@ -20,44 +27,116 @@ export function Logo({ size = 32 }: { size?: number }) {
   return <Image source={LOGO} style={{ width: size, height: size }} contentFit="contain" accessibilityLabel="Destress AI" />;
 }
 
-export function LivingLogo({ size = 148 }: { size?: number }) {
-  const reduced = useReducedMotion();
-  const turn = useSharedValue(0);
-  const breath = useSharedValue(0);
-  useEffect(() => {
-    if (reduced) return;
-    turn.value = withRepeat(withTiming(1, { duration: 90000, easing: Easing.linear }), -1);
-    breath.value = withRepeat(withTiming(1, { duration: 4200, easing: Easing.inOut(Easing.sin) }), -1, true);
-  }, [reduced]);
-  const spin = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${turn.value * 360}deg` }, { scale: 1 + breath.value * 0.03 }],
-  }));
-  const glow = useAnimatedStyle(() => ({ opacity: 0.55 + breath.value * 0.35, transform: [{ scale: 1 + breath.value * 0.08 }] }));
+/** Soft round glow behind the logo: concentric circles fading outwards. */
+function Glow({ size, opacity }: { size: number; opacity: number }) {
+  return (
+    <View style={[StyleSheet.absoluteFill, styles.center]}>
+      {[1, 0.86, 0.72, 0.6].map((f, i) => (
+        <View
+          key={f}
+          style={{
+            position: 'absolute',
+            width: size * f,
+            height: size * f,
+            borderRadius: (size * f) / 2,
+            backgroundColor: `rgba(232, 170, 140, ${(0.07 + i * 0.05) * opacity})`,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+/** The logo at rest in its soft clay glow, for the start screen. */
+export function HaloLogo({ size = 148 }: { size?: number }) {
   const halo = size * 1.75;
   return (
     <View style={{ width: halo, height: halo, alignItems: 'center', justifyContent: 'center' }}>
-      {/* Soft round glow: concentric circles fading outwards. */}
-      <Animated.View style={[StyleSheet.absoluteFill, styles.center, glow]}>
-        {[1, 0.86, 0.72, 0.6].map((f, i) => (
-          <View
-            key={f}
-            style={{
-              position: 'absolute',
-              width: halo * f,
-              height: halo * f,
-              borderRadius: (halo * f) / 2,
-              backgroundColor: `rgba(232, 170, 140, ${0.07 + i * 0.05})`,
-            }}
-          />
-        ))}
+      <Glow size={halo} opacity={1} />
+      <Logo size={size} />
+    </View>
+  );
+}
+
+const BREATH_MS = 4000;
+
+/** The logo breathing in and out slowly: in for 4 s, out for 4 s. */
+export function BreathingLogo({ size }: { size: number }) {
+  const reduced = useReducedMotion();
+  const breath = useSharedValue(0);
+  useEffect(() => {
+    if (!reduced) {
+      breath.value = withRepeat(withTiming(1, { duration: BREATH_MS, easing: Easing.inOut(Easing.sin) }), -1, true);
+    }
+  }, [reduced]);
+  const logo = useAnimatedStyle(() => ({ transform: [{ scale: 0.92 + breath.value * 0.1 }] }));
+  const glow = useAnimatedStyle(() => ({ opacity: 0.35 + breath.value * 0.65, transform: [{ scale: 0.9 + breath.value * 0.15 }] }));
+  const halo = size * 1.9;
+  return (
+    <View style={{ width: halo, height: halo, alignItems: 'center', justifyContent: 'center' }}>
+      <Animated.View style={[StyleSheet.absoluteFill, glow]}>
+        <Glow size={halo} opacity={1} />
       </Animated.View>
-      <Animated.View style={spin}>
+      <Animated.View style={logo}>
         <Logo size={size} />
       </Animated.View>
     </View>
   );
 }
 
+/** Three small dots that fade in turn, slowly. For inline "working on it" moments. */
+export function SoftDots({ color = fields.stress.strong, size = 7 }: { color?: string; size?: number }) {
+  return (
+    <View style={styles.dots} accessibilityLabel="Loading">
+      {[0, 1, 2].map((i) => (
+        <SoftDot key={i} index={i} color={color} size={size} />
+      ))}
+    </View>
+  );
+}
+
+function SoftDot({ index, color, size }: { index: number; color: string; size: number }) {
+  const reduced = useReducedMotion();
+  const t = useSharedValue(0.3);
+  useEffect(() => {
+    if (reduced) return;
+    t.value = withDelay(
+      index * 260,
+      withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0.3, { duration: 900 })), -1),
+    );
+  }, [reduced]);
+  const style = useAnimatedStyle(() => ({ opacity: t.value, transform: [{ scale: 0.8 + t.value * 0.25 }] }));
+  return <Animated.View style={[{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }, style]} />;
+}
+
+/**
+ * Full-screen calm loading state: the breathing logo, soft dots and an
+ * optional quiet line. Appears with a short fade so quick loads don't flash.
+ */
+export function CalmLoader({ message, size = 84 }: { message?: string; size?: number }) {
+  return (
+    <Animated.View entering={FadeIn.duration(500).delay(150)} style={styles.full}>
+      <BreathingLogo size={size} />
+      <SoftDots />
+      {message ? <Text style={styles.message}>{message}</Text> : null}
+    </Animated.View>
+  );
+}
+
+/** A smaller calm loading state for inside a screen (no logo, just the dots). */
+export function InlineLoader({ message }: { message?: string }) {
+  return (
+    <Animated.View entering={FadeIn.duration(400).delay(120)} style={styles.inline}>
+      <SoftDots />
+      {message ? <Text style={styles.message}>{message}</Text> : null}
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
+  full: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 18, backgroundColor: colors.ivory },
+  inline: { alignItems: 'center', justifyContent: 'center', gap: 12, paddingVertical: 36 },
+  dots: { flexDirection: 'row', gap: 8, alignItems: 'center' },
+  message: { fontFamily: fontFamily.medium, fontSize: 14, color: colors.textMuted, textAlign: 'center' },
 });

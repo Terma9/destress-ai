@@ -6,7 +6,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { InlineLoader, SoftDots } from '@/components/brand';
 import { CrisisCard } from '@/components/chat';
 import { Card, EmptyState, GradientCard, Screen, SectionHeader } from '@/components/ui';
 import {
@@ -56,7 +57,7 @@ export default function SuccessStoryScreen() {
     return (
       <Screen>
         {back}
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <InlineLoader />
       </Screen>
     );
   }
@@ -214,7 +215,7 @@ export default function SuccessStoryScreen() {
             </Pressable>
             <Pressable style={styles.primaryBtn} onPress={publish} disabled={busy !== 'idle'}>
               {busy === 'publishing' ? (
-                <ActivityIndicator color={colors.white} />
+                <SoftDots color={colors.white} size={6} />
               ) : (
                 <Text style={styles.primaryBtnText}>Publish</Text>
               )}
@@ -235,7 +236,7 @@ export default function SuccessStoryScreen() {
           </Text>
           <Pressable style={styles.primaryBtn} onPress={prepare} disabled={busy !== 'idle'}>
             {busy === 'preparing' ? (
-              <ActivityIndicator color={colors.white} />
+              <SoftDots color={colors.white} size={6} />
             ) : (
               <Text style={styles.primaryBtnText}>Prepare to share</Text>
             )}

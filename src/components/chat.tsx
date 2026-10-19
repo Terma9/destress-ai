@@ -1,6 +1,9 @@
 /**
  * Building blocks shared by the AI conversations (check-in and Untangle):
- * message bubbles, the text + voice composer, and the crisis card.
+ * message bubbles, the typing indicator, the text + voice composer, and the
+ * crisis card. Warm on purpose: the companion speaks from soft sand-colored
+ * bubbles next to the logo, the user's words sit in deep ink, and every
+ * message glides in.
  */
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -10,26 +13,66 @@ import {
   useAudioRecorder,
   useAudioRecorderState,
 } from 'expo-audio';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import Animated, {
+  Easing,
+  FadeInDown,
+  FadeInUp,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { type ChatMessage, transcribeAudio } from '@/ai/checkinClient';
-import { colors, font, radii, spacing } from '@/theme';
+import { Logo, SoftDots } from '@/components/brand';
+import { PressableScale } from '@/components/motion';
+import { colors, fields, fontFamily, gradients, radii, shadow, spacing } from '@/theme';
 
-export function MessageBubble({ message }: { message: ChatMessage }) {
-  const mine = message.role === 'user';
+const SAND: [string, string] = ['#FBF4EC', '#F3E8DB'];
+
+/** The companion's little face: the logo in a soft circle. */
+export function CompanionAvatar({ size = 28 }: { size?: number }) {
   return (
-    <View style={[styles.bubble, mine ? styles.userBubble : styles.aiBubble]}>
-      <Text style={mine ? styles.userText : styles.aiText}>{message.content}</Text>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+      <Logo size={size * 0.78} />
     </View>
   );
 }
 
-/** Shown while waiting for the AI's first word. */
+export function MessageBubble({ message, showAvatar = true }: { message: ChatMessage; showAvatar?: boolean }) {
+  if (message.role === 'user') {
+    return (
+      <Animated.View entering={FadeInDown.duration(360).springify().damping(18)} style={styles.userRow}>
+        <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.userBubble}>
+          <Text style={styles.userText}>{message.content}</Text>
+        </LinearGradient>
+      </Animated.View>
+    );
+  }
+  return (
+    <Animated.View entering={FadeInDown.duration(420).springify().damping(18)} style={styles.aiRow}>
+      {showAvatar ? <CompanionAvatar /> : <View style={{ width: 28 }} />}
+      <LinearGradient colors={SAND} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.aiBubble}>
+        <Text style={styles.aiText}>{message.content}</Text>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+/** Shown while waiting for the companion's first word. */
 export function TypingBubble() {
   return (
-    <View style={[styles.bubble, styles.aiBubble]}>
-      <ActivityIndicator size="small" color={colors.textFaint} />
-    </View>
+    <Animated.View entering={FadeInDown.duration(300)} style={styles.aiRow}>
+      <CompanionAvatar />
+      <LinearGradient colors={SAND} style={[styles.aiBubble, styles.typing]}>
+        <SoftDots size={6} />
+      </LinearGradient>
+    </Animated.View>
   );
 }
 
@@ -40,10 +83,57 @@ const formatDuration = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
+/** A soft ring that keeps rippling out from the mic button. */
+function MicRings() {
+  const reduced = useReducedMotion();
+  return (
+    <>
+      {[0, 1].map((i) => (
+        <Ring key={i} delay={i * 1300} reduced={reduced} />
+      ))}
+    </>
+  );
+}
+
+function Ring({ delay, reduced }: { delay: number; reduced: boolean }) {
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (!reduced) t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 2600, easing: Easing.out(Easing.quad) }), -1));
+  }, [reduced]);
+  const style = useAnimatedStyle(() => ({ opacity: 0.45 * (1 - t.value), transform: [{ scale: 1 + t.value * 0.7 }] }));
+  return <Animated.View style={[StyleSheet.absoluteFill, styles.ring, { pointerEvents: "none" }, style]} />;
+}
+
+/** A small moving wave while recording, so it feels alive and listening. */
+function Wave() {
+  return (
+    <View style={styles.wave}>
+      {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+        <WaveBar key={i} index={i} />
+      ))}
+    </View>
+  );
+}
+
+function WaveBar({ index }: { index: number }) {
+  const reduced = useReducedMotion();
+  const h = useSharedValue(0.35);
+  useEffect(() => {
+    if (reduced) return;
+    const peak = 0.55 + ((index * 37) % 45) / 100;
+    h.value = withDelay(
+      index * 90,
+      withRepeat(withSequence(withTiming(peak, { duration: 380 + index * 30 }), withTiming(0.3, { duration: 420 })), -1),
+    );
+  }, [reduced]);
+  const style = useAnimatedStyle(() => ({ height: 22 * h.value }));
+  return <Animated.View style={[styles.waveBar, style]} />;
+}
+
 /**
- * Text field with a mic button. Spoken messages are transcribed and sent
- * automatically. `onBusyChange` tells the screen while a recording or
- * transcription is in progress, so it can disable its other buttons.
+ * Text field with a mic button, floating on the screen. Spoken messages are
+ * transcribed and sent automatically. `onBusyChange` tells the screen while
+ * a recording or transcription is in progress.
  */
 export function VoiceComposer({
   disabled,
@@ -126,31 +216,33 @@ export function VoiceComposer({
 
   if (mode === 'recording') {
     return (
-      <View style={styles.recordBar}>
-        <Pressable onPress={cancelRecording} hitSlop={8} accessibilityLabel="Cancel recording">
-          <Ionicons name="trash-outline" size={20} color={colors.textMuted} />
+      <Animated.View entering={FadeInUp.duration(240)} style={[styles.composer, styles.recording]}>
+        <Pressable onPress={cancelRecording} hitSlop={8} accessibilityLabel="Cancel recording" style={styles.iconBtn}>
+          <Ionicons name="close" size={20} color={fields.stress.ink} />
         </Pressable>
-        <View style={styles.recDot} />
+        <Wave />
         <Text style={styles.recText}>
-          Recording {formatDuration(recording.durationMillis)}
+          {formatDuration(recording.durationMillis)}
           <Text style={styles.recLimit}> / {formatDuration(MAX_RECORDING_MS)}</Text>
         </Text>
-        <Pressable style={styles.stopBtn} onPress={stopRecording} accessibilityLabel="Stop and send">
-          <Ionicons name="arrow-up" size={20} color={colors.white} />
-        </Pressable>
-      </View>
+        <PressableScale onPress={stopRecording} accessibilityLabel="Stop and send">
+          <LinearGradient colors={gradients.clay} style={styles.roundBtn}>
+            <Ionicons name="arrow-up" size={21} color={colors.white} />
+          </LinearGradient>
+        </PressableScale>
+      </Animated.View>
     );
   }
   if (mode === 'transcribing') {
     return (
-      <View style={styles.recordBar}>
-        <ActivityIndicator size="small" color={colors.primary} />
-        <Text style={styles.recText}>Transcribing…</Text>
-      </View>
+      <Animated.View entering={FadeInUp.duration(240)} style={[styles.composer, styles.transcribing]}>
+        <SoftDots />
+        <Text style={styles.transcribingText}>Writing down what you said…</Text>
+      </Animated.View>
     );
   }
   return (
-    <View style={styles.inputRow}>
+    <View style={styles.composer}>
       <TextInput
         value={draft}
         onChangeText={setDraft}
@@ -160,21 +252,20 @@ export function VoiceComposer({
         multiline
       />
       {draft.trim() ? (
-        <Pressable
-          style={[styles.sendBtn, disabled && styles.disabled]}
-          disabled={disabled}
-          onPress={send}
-          accessibilityLabel="Send">
-          <Ionicons name="arrow-up" size={20} color={colors.white} />
-        </Pressable>
+        <PressableScale onPress={send} disabled={disabled} accessibilityLabel="Send" style={disabled && styles.disabled}>
+          <LinearGradient colors={gradients.primary} style={styles.roundBtn}>
+            <Ionicons name="arrow-up" size={21} color={colors.white} />
+          </LinearGradient>
+        </PressableScale>
       ) : (
-        <Pressable
-          style={[styles.micBtn, disabled && styles.disabled]}
-          disabled={disabled}
-          onPress={startRecording}
-          accessibilityLabel="Speak your message">
-          <Ionicons name="mic" size={20} color={colors.white} />
-        </Pressable>
+        <PressableScale onPress={startRecording} disabled={disabled} accessibilityLabel="Speak your message" style={disabled && styles.disabled}>
+          <View>
+            {!disabled && <MicRings />}
+            <LinearGradient colors={gradients.clay} style={styles.roundBtn}>
+              <Ionicons name="mic" size={21} color={colors.white} />
+            </LinearGradient>
+          </View>
+        </PressableScale>
       )}
     </View>
   );
@@ -198,76 +289,68 @@ export function CrisisCard() {
 }
 
 const styles = StyleSheet.create({
-  bubble: { maxWidth: '85%', borderRadius: radii.lg, paddingVertical: spacing.sm + 2, paddingHorizontal: spacing.md + 2 },
-  aiBubble: { alignSelf: 'flex-start', backgroundColor: colors.cardAlt, borderWidth: 1, borderColor: colors.border },
-  userBubble: { alignSelf: 'flex-end', backgroundColor: colors.primary },
-  aiText: { ...font.body, color: colors.text, lineHeight: 21 },
-  userText: { ...font.body, color: colors.white, lineHeight: 21 },
-  inputRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm },
+  avatar: { backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', ...shadow.soft },
+  aiRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, maxWidth: '88%' },
+  aiBubble: {
+    flexShrink: 1,
+    borderRadius: 20,
+    borderBottomLeftRadius: 6,
+    paddingVertical: 11,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.8)',
+  },
+  typing: { paddingVertical: 15, paddingHorizontal: 16 },
+  aiText: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 22, color: colors.ink },
+  userRow: { alignSelf: 'flex-end', maxWidth: '82%' },
+  userBubble: { borderRadius: 20, borderBottomRightRadius: 6, paddingVertical: 11, paddingHorizontal: 14, ...shadow.soft },
+  userText: { fontFamily: fontFamily.regular, fontSize: 15, lineHeight: 22, color: colors.ivory },
+  composer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: spacing.sm,
+    backgroundColor: colors.card,
+    borderRadius: 26,
+    padding: 6,
+    paddingLeft: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#F0ECE5',
+    ...shadow.card,
+  },
   input: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 46,
     maxHeight: 120,
-    backgroundColor: colors.cardAlt,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.md,
-    paddingTop: 11,
-    paddingBottom: 11,
-    ...font.body,
-    color: colors.text,
+    paddingTop: 13,
+    paddingBottom: 13,
+    fontFamily: fontFamily.regular,
+    fontSize: 15,
+    color: colors.ink,
   },
-  sendBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  micBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.purple,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  recordBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    minHeight: 44,
-    paddingLeft: spacing.md,
-    borderRadius: radii.lg,
-    backgroundColor: '#FEF2F2',
-  },
-  recDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.danger },
-  recText: { ...font.body, color: colors.text, fontWeight: '600', flex: 1 },
-  recLimit: { color: colors.textFaint, fontWeight: '400' },
-  stopBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  roundBtn: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
+  ring: { borderRadius: 23, borderWidth: 2, borderColor: fields.stress.strong },
   disabled: { opacity: 0.45 },
-  crisis: { backgroundColor: '#FFF7ED', borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: '#FED7AA' },
-  crisisTitle: { ...font.title, color: '#9A3412' },
-  crisisBody: { ...font.body, color: '#7C2D12', lineHeight: 20 },
+  recording: { alignItems: 'center', backgroundColor: fields.stress.from, borderColor: fields.stress.to, paddingLeft: 6 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  wave: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 26, flex: 1, justifyContent: 'center' },
+  waveBar: { width: 4, borderRadius: 2, backgroundColor: fields.stress.strong },
+  recText: { fontFamily: fontFamily.semibold, fontSize: 14, color: fields.stress.ink },
+  recLimit: { fontFamily: fontFamily.regular, color: fields.stress.ink, opacity: 0.6 },
+  transcribing: { alignItems: 'center', justifyContent: 'center', minHeight: 58, gap: 12 },
+  transcribingText: { fontFamily: fontFamily.medium, fontSize: 14, color: colors.textMuted },
+  crisis: { backgroundColor: '#FFF4EC', borderRadius: radii.lg, padding: spacing.lg, gap: spacing.sm, borderWidth: 1, borderColor: '#F6D3BE' },
+  crisisTitle: { fontFamily: fontFamily.bold, fontSize: 16, color: '#8A3A1A' },
+  crisisBody: { fontFamily: fontFamily.regular, fontSize: 14, color: '#6E2E14', lineHeight: 20 },
   crisisBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#EA580C',
+    backgroundColor: colors.clay,
     borderRadius: radii.pill,
     paddingVertical: spacing.md,
     marginTop: spacing.xs,
   },
-  crisisBtnText: { color: colors.white, fontWeight: '600', fontSize: 15 },
-  crisisNote: { ...font.small, color: '#9A3412', textAlign: 'center' },
+  crisisBtnText: { fontFamily: fontFamily.semibold, color: colors.white, fontSize: 15 },
+  crisisNote: { fontFamily: fontFamily.regular, fontSize: 12, color: '#8A3A1A', textAlign: 'center' },
 });

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { InlineLoader, SoftDots } from '@/components/brand';
 import { loadDemoData, searchCheckins, type SearchResult } from '@/ai/checkinClient';
 import { Card, EmptyState, GradientCard, ProgressBar, Screen, SectionHeader } from '@/components/ui';
 import { moodEmoji, useCheckins } from '@/data/checkins';
@@ -151,7 +152,7 @@ export default function Diary() {
       )}
       {search ? (
         search.status === 'searching' ? (
-          <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+          <InlineLoader />
         ) : search.status === 'error' ? (
           <Text style={styles.searchNote}>Search didn't work. Check your connection and try again.</Text>
         ) : search.results.length === 0 ? (
@@ -190,7 +191,7 @@ export default function Diary() {
           caption="Check your connection — the list reloads when you come back to this tab."
         />
       ) : checkins === null ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xl }} />
+        <InlineLoader />
       ) : entries.length === 0 ? (
         <EmptyState
           icon={<Ionicons name="book-outline" size={32} color={colors.textFaint} />}
@@ -199,7 +200,7 @@ export default function Diary() {
           action={
             <Pressable style={styles.demoBtn} onPress={addDemoData} disabled={demo === 'loading'}>
               {demo === 'loading' ? (
-                <ActivityIndicator color={colors.primary} />
+                <SoftDots size={6} />
               ) : (
                 <Text style={styles.demoText}>
                   {demo === 'error' ? "Couldn't load demo data — try again" : 'Or try it with 3 weeks of demo data'}

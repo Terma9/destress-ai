@@ -9,8 +9,9 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { type ReactNode, useEffect } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { CalmLoader } from '@/components/brand';
 import { PrimaryButton } from '@/components/ui';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { colors, font, spacing } from '@/theme';
@@ -61,7 +62,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   return (
     <View style={styles.center}>
       {auth.status === 'loading' ? (
-        <ActivityIndicator size="large" color={colors.primary} />
+        <CalmLoader />
       ) : (
         <>
           <Text style={styles.title}>Couldn't connect</Text>

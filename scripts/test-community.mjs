@@ -132,9 +132,16 @@ await rest(reader, 'POST', 'rpc/vote_story', { p_story: success.id, p_value: 1 }
 let after = (await feed(reader)).data.find((s) => s.id === success.id);
 check('upvote counts as "helpful"', after.helpful === 1 && after.my_vote === 1, `helpful ${after.helpful}`);
 await rest(reader, 'POST', 'rpc/vote_story', { p_story: success.id, p_value: -1 });
-after = (await feed(reader)).data.find((s) => s.id === success.id);
-check('downvote replaces the upvote and is not shown as a count', after.helpful === 0 && after.my_vote === -1);
-check('the author sees it marked as their own', (await feed(author)).data.find((s) => s.id === success.id)?.is_mine === true);
+check('"not for me" hides the story from that reader', !(await feed(reader)).data.some((s) => s.id === success.id));
+const forAuthor = (await feed(author)).data.find((s) => s.id === success.id);
+check('others still see it, and the downvote is never shown as a count', forAuthor?.helpful === 0 && forAuthor?.is_mine === true);
+await rest(reader, 'POST', 'rpc/vote_story', { p_story: success.id, p_value: 0 });
+check('undo brings it back', (await feed(reader)).data.some((s) => s.id === success.id));
+
+const critic = await signUp();
+await rest(critic, 'POST', 'rpc/report_story', { p_story: success.id, p_reason: 'test' });
+check('reporting hides it for the reporter', !(await feed(critic)).data.some((s) => s.id === success.id));
+check('one report does not hide it for everyone', (await feed(reader)).data.some((s) => s.id === success.id));
 
 console.log('\n6. "For you" ranks by the reader\'s own topics');
 await fn(reader, 'seed-demo', {}); // the student persona: exams, sleep, walks

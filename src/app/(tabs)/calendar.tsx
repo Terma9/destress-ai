@@ -6,8 +6,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn as Appear, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { InlineLoader } from '@/components/brand';
 import { FIELD_LABELS, fieldShade, moodWord } from '@/components/fields';
 import { FadeIn, PressableScale } from '@/components/motion';
 import { Card, EmptyState, Screen } from '@/components/ui';
@@ -81,7 +82,7 @@ export default function Calendar() {
           caption="Check your connection and come back to this tab."
         />
       ) : !data ? (
-        <ActivityIndicator color={colors.ink} style={{ marginVertical: spacing.xxl }} />
+        <InlineLoader />
       ) : (
         <View style={styles.grid} key={`${view.year}-${view.month}-${kind}`}>
           {Array.from({ length: leading }, (_, i) => (

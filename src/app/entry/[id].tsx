@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { InlineLoader, SoftDots } from '@/components/brand';
 import { Card, Screen } from '@/components/ui';
 import { type CheckinWithMessages, deleteCheckin, fetchCheckin, moodEmoji } from '@/data/checkins';
 import { colors, font, radii, spacing } from '@/theme';
@@ -42,7 +43,7 @@ export default function EntryDetail() {
     return (
       <Screen>
         {back}
-        <ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} />
+        <InlineLoader />
       </Screen>
     );
   }
@@ -138,7 +139,7 @@ export default function EntryDetail() {
         onPress={onDelete}
         disabled={deleting}>
         {deleting ? (
-          <ActivityIndicator size="small" color={colors.white} />
+          <SoftDots color={colors.white} size={6} />
         ) : (
           <Ionicons name="trash-outline" size={16} color={confirming ? colors.white : colors.danger} />
         )}
