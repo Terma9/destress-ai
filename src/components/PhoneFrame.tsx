@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { type ReactNode, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
-import Animated, { FadeInLeft, FadeOutLeft } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeInLeft, FadeOutLeft } from 'react-native-reanimated';
 import { SafeAreaInsetsContext } from 'react-native-safe-area-context';
 import { Logo, SoftDots } from '@/components/brand';
 import { PressableScale } from '@/components/motion';
@@ -129,6 +129,7 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
 function LeftColumn({ width, height }: { width: number; height: number }) {
   const isDemo = useAppStore((s) => s.demo);
   const [showInfo, setShowInfo] = useState(false);
+  const [openFeature, setOpenFeature] = useState<string | null>(FEATURES[0].title);
   const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
 
   async function loadDemo() {
@@ -186,17 +187,34 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.panelBody} showsVerticalScrollIndicator={false}>
-            {FEATURES.map((f) => (
-              <View key={f.title} style={styles.feature}>
-                <View style={[styles.featureIcon, { backgroundColor: f.tint }]}>
-                  <Ionicons name={f.icon} size={17} color={f.ink} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.featureTitle}>{f.title}</Text>
-                  <Text style={styles.featureText}>{f.text}</Text>
-                </View>
-              </View>
-            ))}
+            {/* Titles only; a feature's text opens on hover (or tap), one at a time. */}
+            {FEATURES.map((f) => {
+              const isOpen = openFeature === f.title;
+              return (
+                <Pressable
+                  key={f.title}
+                  onHoverIn={() => setOpenFeature(f.title)}
+                  onPress={() => setOpenFeature(isOpen ? null : f.title)}
+                  style={[styles.feature, isOpen && styles.featureOpen]}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}>
+                  <View style={[styles.featureIcon, { backgroundColor: f.tint }]}>
+                    <Ionicons name={f.icon} size={17} color={f.ink} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={styles.featureHead}>
+                      <Text style={styles.featureTitle}>{f.title}</Text>
+                      <Ionicons name={isOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textFaint} />
+                    </View>
+                    {isOpen && (
+                      <Animated.Text entering={FadeIn.duration(200)} style={styles.featureText}>
+                        {f.text}
+                      </Animated.Text>
+                    )}
+                  </View>
+                </Pressable>
+              );
+            })}
           </ScrollView>
         </Animated.View>
       )}
@@ -334,7 +352,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: -12,
     right: -12,
-    backgroundColor: 'rgba(255,255,255,0.96)',
+    backgroundColor: '#FFFFFF',
     borderRadius: radii.xl,
     ...shadow.lifted,
   },
@@ -348,9 +366,11 @@ const styles = StyleSheet.create({
   },
   panelTitle: { ...font.h2, color: colors.ink },
   close: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center' },
-  panelBody: { paddingHorizontal: 24, paddingBottom: 24, gap: 18 },
-  feature: { flexDirection: 'row', gap: 12 },
+  panelBody: { paddingHorizontal: 14, paddingBottom: 24, gap: 4 },
+  feature: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: radii.md },
+  featureOpen: { backgroundColor: colors.ivory },
+  featureHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 34 },
   featureIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   featureTitle: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ink },
-  featureText: { ...font.small, fontSize: 13, color: colors.inkSoft, lineHeight: 19, marginTop: 3 },
+  featureText: { ...font.small, fontSize: 13, color: colors.inkSoft, lineHeight: 19, marginTop: 2 },
 });
