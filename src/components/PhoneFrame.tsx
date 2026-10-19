@@ -21,13 +21,14 @@ import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, tints } from '@/theme';
 
 const MIN_DESKTOP_WIDTH = 700;
-const MAX_HEIGHT = 860;
+const MAX_HEIGHT = 820;
 const RATIO = 0.47; // width / height of a modern phone
 const BEZEL = 11;
-const GAP = 80;
-const MAX_COLUMN = 330;
+/** Space on both sides of the phone, so it can breathe. */
+const GAP = 120;
+const MAX_COLUMN = 300;
 /** Narrower than this, the side columns are left out and only the phone shows. */
-const MIN_COLUMN = 250;
+const MIN_COLUMN = 240;
 /** Space the app keeps free for the status bar and the home indicator, like on a real phone. */
 const PHONE_INSETS = { top: 50, bottom: 22, left: 0, right: 0 };
 const LINKEDIN = 'https://www.linkedin.com/in/simon--kraus/';
@@ -61,23 +62,22 @@ const FEATURES = [
     title: 'Untangle · Stress solving',
     text: "Stress that keeps coming back? The app first finds out what's behind it, then makes a plan with you based on your own history. As you go, the plan adapts.",
   },
+  {
+    icon: 'people-outline',
+    tint: fields.stress.from,
+    ink: fields.stress.deep,
+    title: 'Community',
+    text: 'Short, anonymous stories from people who solved similar stress, and the option to share your own. Every post and comment is checked for kindness and privacy before it appears.',
+  },
 ] as const;
 
-const STACK = [
-  'Expo / React Native',
-  'Supabase (Postgres + RLS)',
-  'Edge Functions',
-  'OpenAI (chat, structured output, speech-to-text, embeddings)',
-  'RAG with pgvector',
-  'AI moderation',
-  'Daily AI quotas',
-];
 
 export function PhoneFrame({ children }: { children: ReactNode }) {
   const { width, height } = useWindowDimensions();
   if (Platform.OS !== 'web' || width < MIN_DESKTOP_WIDTH) return <>{children}</>;
 
-  const phoneHeight = Math.min(MAX_HEIGHT, height - 72);
+  // Generous room above and below the phone as well.
+  const phoneHeight = Math.min(MAX_HEIGHT, height - 120);
   const phoneWidth = Math.round(phoneHeight * RATIO);
   const column = Math.min(MAX_COLUMN, (width - phoneWidth - 2 * GAP - 64) / 2);
   const withColumns = column >= MIN_COLUMN;
@@ -197,14 +197,6 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
                 </View>
               </View>
             ))}
-            <Text style={styles.stackLabel}>TECH STACK</Text>
-            <View style={styles.chips}>
-              {STACK.map((c) => (
-                <Text key={c} style={styles.chip}>
-                  {c}
-                </Text>
-              ))}
-            </View>
           </ScrollView>
         </Animated.View>
       )}
@@ -361,16 +353,4 @@ const styles = StyleSheet.create({
   featureIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   featureTitle: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ink },
   featureText: { ...font.small, fontSize: 13, color: colors.inkSoft, lineHeight: 19, marginTop: 3 },
-  stackLabel: { ...font.label, color: colors.textMuted, marginTop: 4 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: -10 },
-  chip: {
-    ...font.tiny,
-    fontFamily: fontFamily.medium,
-    color: colors.inkSoft,
-    backgroundColor: colors.sand,
-    borderRadius: radii.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    overflow: 'hidden',
-  },
 });
