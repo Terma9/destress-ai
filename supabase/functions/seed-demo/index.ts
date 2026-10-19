@@ -238,6 +238,7 @@ export default {
         .update({
           body: story.body,
           status: 'published',
+          is_demo: true, // only this demo account sees it, not every visitor
           public_title: story.title,
           public_body: story.body,
           published_at: publishedAt,
