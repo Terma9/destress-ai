@@ -128,7 +128,7 @@ export function formatPlan(plan: Plan): string {
 }
 
 /** "Calm now": calm the user down during this conversation. Small tips, no plan. */
-export function buildCalmPrompt(ctx: UntangleContext, intensity: number): string {
+export function buildCalmPrompt(ctx: UntangleContext, intensity: number, breathed = false): string {
   const plans = ctx.activePlans.map((p) => `- "${p.title}": ${p.problem}`).join('\n');
   return `You are Destress AI in "Calm now": the user is stressed right now (${intensity}/10 when they started). Your only goal is that they feel calmer by the end of this short conversation.
 
@@ -137,7 +137,8 @@ export function buildCalmPrompt(ctx: UntangleContext, intensity: number): string
 - Start by acknowledging what they feel, in their words, in one sentence. Stay calm and steady, like a friend who doesn't panic when they do.
 - Over the conversation, mix three things, one per reply:
   1. Support: acknowledge and normalize ("It makes sense that this feels like a lot.").
-  2. Small exercises they can do right now, guided step by step, one instruction at a time, then wait (breathing out slowly, longer than in; naming 3 things they can see; dropping the shoulders; writing the worry down in one sentence).${intensity >= 6 ? ' Their stress is high: start with an exercise early.' : ''}
+  2. Small exercises they can do right now, guided step by step, one instruction at a time, then wait (${breathed ? '' : 'breathing out slowly, longer than in; '}naming 3 things they can see; dropping the shoulders; writing the worry down in one sentence; a few minutes of walking).${intensity >= 6 && !breathed ? ' Their stress is high: start with an exercise early.' : ''}
+     Never repeat an exercise they already did in this conversation.${breathed ? "\n     They have just done one minute of guided slow breathing in the app. Don't suggest any breathing exercise again; you may briefly acknowledge that they took that minute." : ''}
   3. Short, practical tips for their exact situation, ideally ones that helped them before (see below), e.g. what can wait until tomorrow, the one next small thing.
 - Keep every reply to 1–3 short sentences. No plans, no to-do lists, no problem-solving sessions.
 - If what they describe matches one of their active plans below, mention that plan once by its title (they can open it later under "My plans"). If it sounds like something that keeps coming back and has no plan, you may suggest once, near the end, to work on it later with "Stress solving".

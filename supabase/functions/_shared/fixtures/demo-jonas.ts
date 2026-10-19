@@ -422,9 +422,9 @@ export const calmSession = {
   messages: chat(
     '',
     'In the client meeting my boss presented my pitch deck as his own work. Didn\'t mention me once. I\'m shaking.',
-    "That's really unfair, and it makes sense that you're shaking. Let's calm your body first. Breathe in for four counts, then out for six. Do that three times.",
+    "That's really unfair, and it makes sense that you're shaking. Good that you took that minute to breathe. Now drop your shoulders and put both feet flat on the floor.",
     'Done. A bit better.',
-    "Good. Now drop your shoulders and put both feet on the floor. You don't have to solve anything right now. What would you like to say to him?",
+    "Good. You don't have to solve anything right now. What would you like to say to him?",
     'That I did the work and I want to be named.',
     "That's fair and clear. Write that one sentence down, but don't send it today. You can decide tomorrow, with a calmer head.",
     'Wrote it down. Actually feel calmer now.',

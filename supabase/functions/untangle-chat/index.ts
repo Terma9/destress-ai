@@ -1,7 +1,7 @@
 /**
  * untangle-chat — one turn of an Untangle conversation, in one of two modes.
  *
- * Request:  POST { messages: [...], intensity: 0–10, mode: 'calm' | 'plan', sessionId? }
+ * Request:  POST { messages: [...], intensity: 0–10, mode: 'calm' | 'plan', sessionId?, breathed? }
  * Response: the AI's reply, streamed as plain text.
  *
  * calm — "Calm now": calming, small tips, no plan.
@@ -36,7 +36,7 @@ export default {
     try {
       const context = await loadUntangleContext(ctx.supabase, getEmbedder(), messages);
       if ((body as { mode?: unknown })?.mode === 'calm') {
-        system = buildCalmPrompt(context, intensity);
+        system = buildCalmPrompt(context, intensity, (body as { breathed?: unknown }).breathed === true);
       } else {
         const session = await loadPlanSession(ctx.supabase, body);
         const answered = messages.filter((m) => m.role === 'user').length - 1;

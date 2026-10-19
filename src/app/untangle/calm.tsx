@@ -3,8 +3,10 @@
  * calmer by the end. Small tips are fine, plans are not (that's Stress
  * solving). The AI may point to one of the user's plans.
  *
- *   intake — how stressed (0–10) and, optionally, what's going on
- *   breathe — at 8+, one minute of slow breathing first
+ *   intake — how stressed (0–10, a slider) and what's going on
+ *   settle — at 7+, a short note on why calming the body comes first
+ *   breathe — then one minute of guided breathing (the AI is told, so it
+ *             doesn't suggest breathing again)
  *   talk   — the calming conversation (untangle-chat, mode 'calm')
  *   rate   — "How intense is it now?", saved with the conversation
  *   done   — before → after, plus a way into Stress solving
@@ -20,12 +22,14 @@ import { type ChatMessage, streamUntangleReply } from '@/ai/checkinClient';
 import { HaloLogo, SoftDots } from '@/components/brand';
 import { MessageBubble, TypingBubble, VoiceComposer } from '@/components/chat';
 import { AiMark, PressableScale } from '@/components/motion';
-import { BreathingPause, IntensityPicker } from '@/components/untangle';
+import { BreathingPause, StressSlider } from '@/components/untangle';
 import { fetchSessions, saveCalmSession, type UntangleSession } from '@/data/untangle';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing } from '@/theme';
 
-type Stage = 'intake' | 'breathe' | 'talk' | 'rate' | 'saving' | 'done';
-const BREATHE_FROM = 8;
+type Stage = 'intake' | 'settle' | 'breathe' | 'talk' | 'rate' | 'saving' | 'done';
+const BREATHE_FROM = 7;
+/** How long the "you seem very stressed" note stays before the breathing starts. */
+const SETTLE_MS = 6500;
 
 export default function CalmNow() {
   const router = useRouter();
@@ -40,6 +44,7 @@ export default function CalmNow() {
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [plans, setPlans] = useState<UntangleSession[]>([]);
+  const [breathed, setBreathed] = useState(false);
 
   useEffect(() => {
     fetchSessions()
@@ -47,12 +52,19 @@ export default function CalmNow() {
       .catch(() => {});
   }, []);
 
-  const requestReply = async (history: ChatMessage[]) => {
+  useEffect(() => {
+    if (stage !== 'settle') return;
+    const timer = setTimeout(() => setStage('breathe'), SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [stage]);
+
+  const requestReply = async (history: ChatMessage[], afterBreathing = breathed) => {
     setReplying(true);
     setError(null);
     try {
       await streamUntangleReply(history, before!, (t) => setMessages([...history, { role: 'assistant', content: t }]), {
         mode: 'calm',
+        breathed: afterBreathing,
       });
     } catch (err) {
       setMessages(history);
@@ -65,7 +77,7 @@ export default function CalmNow() {
   const send = (text: string) => {
     const history: ChatMessage[] = [...messages, { role: 'user', content: text }];
     setMessages(history);
-    if (stage === 'intake' && before! >= BREATHE_FROM) return setStage('breathe');
+    if (stage === 'intake' && before! >= BREATHE_FROM) return setStage('settle');
     setStage('talk');
     requestReply(history);
   };
@@ -99,11 +111,25 @@ export default function CalmNow() {
         </Pressable>
       </View>
 
-      {stage === 'breathe' ? (
+      {stage === 'settle' ? (
+        <View style={styles.settle}>
+          <Animated.View entering={FadeIn.duration(800)}>
+            <HaloLogo size={64} />
+          </Animated.View>
+          <Animated.Text entering={FadeInDown.duration(700).delay(400)} style={styles.settleTitle}>
+            You seem very stressed right now.
+          </Animated.Text>
+          <Animated.Text entering={FadeInDown.duration(700).delay(1800)} style={styles.settleText}>
+            Let's calm your nervous system first. A minute of slow breathing helps most, so you can look at what's going on
+            with a clear head.
+          </Animated.Text>
+        </View>
+      ) : stage === 'breathe' ? (
         <BreathingPause
           onDone={() => {
+            setBreathed(true);
             setStage('talk');
-            requestReply(messages);
+            requestReply(messages, true);
           }}
         />
       ) : stage === 'done' ? (
@@ -158,7 +184,7 @@ export default function CalmNow() {
               <Animated.View entering={FadeIn.duration(500)} style={{ gap: spacing.sm }}>
                 <Text style={styles.intro}>Stressed right now? Let's slow down together. It only takes a few minutes.</Text>
                 <Text style={styles.question}>How stressed are you right now?</Text>
-                <IntensityPicker value={before} onChange={setBefore} />
+                <StressSlider value={before} onChange={setBefore} />
                 {before !== null && (
                   <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: spacing.lg, gap: spacing.sm }}>
                     <Text style={styles.question}>What is stressing you?</Text>
@@ -177,7 +203,7 @@ export default function CalmNow() {
                     <Text style={styles.question}>How intense is it now?</Text>
                     <Text style={styles.hint}>You started at {before}.</Text>
                     <View style={{ marginTop: spacing.md }}>
-                      <IntensityPicker value={after} onChange={setAfter} />
+                      <StressSlider value={after} onChange={setAfter} />
                     </View>
                     <PressableScale onPress={save} disabled={after === null || stage === 'saving'} style={{ marginTop: spacing.md }}>
                       <LinearGradient
@@ -248,6 +274,9 @@ const styles = StyleSheet.create({
   primaryText: { fontFamily: fontFamily.semibold, fontSize: 16, color: colors.ivory },
   secondary: { backgroundColor: colors.sand, borderRadius: radii.md, paddingVertical: 13, paddingHorizontal: spacing.md, alignItems: 'center' },
   secondaryText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink, textAlign: 'center' },
+  settle: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl, gap: spacing.lg },
+  settleTitle: { ...font.h3, color: colors.ink, textAlign: 'center' },
+  settleText: { ...font.body, color: colors.inkSoft, textAlign: 'center', lineHeight: 22, maxWidth: 300 },
   done: { padding: spacing.xl, gap: spacing.xl, alignItems: 'center' },
   numbers: { fontFamily: fontFamily.bold, fontSize: 44, color: colors.ink, letterSpacing: -1, marginTop: spacing.md },
   arrow: { color: colors.textFaint },

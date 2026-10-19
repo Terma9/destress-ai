@@ -124,7 +124,7 @@ export async function streamUntangleReply(
   messages: ChatMessage[],
   intensity: number,
   onText: (textSoFar: string) => void,
-  options: { mode: 'calm' | 'plan'; sessionId?: string } = { mode: 'plan' },
+  options: { mode: 'calm' | 'plan'; sessionId?: string; breathed?: boolean } = { mode: 'plan' },
 ): Promise<string> {
   return readStream(await post('untangle-chat', { messages, intensity, ...options }), onText);
 }
