@@ -8,12 +8,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Logo, SoftDots } from '@/components/brand';
-import { FieldTile } from '@/components/fields';
 import { AiMark, FadeIn, LivingGradient, PressableScale, PulseDot, Sheen } from '@/components/motion';
 import { Card, Screen } from '@/components/ui';
 import { type Checkin, useCheckins } from '@/data/checkins';
 import { MIN_CHECKINS, useWeeklyInsights } from '@/data/deepDives';
-import { lastSevenDays, useDailyMetrics } from '@/data/metrics';
 import { computeStreak, dateKey, getGreeting, todayKey } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
 import { useAppStore } from '@/store/useAppStore';
@@ -51,7 +49,6 @@ export default function Today() {
   const router = useRouter();
   const { name, activityDates, reminderEnabled, setReminderEnabled } = useAppStore();
   const { checkins } = useCheckins();
-  const { rows } = useDailyMetrics();
   const weekly = useWeeklyInsights();
   const streak = computeStreak(activityDates);
   const greeting = getGreeting();
@@ -60,14 +57,6 @@ export default function Today() {
   const entryDay = (c: Checkin) => c.day ?? dateKey(new Date(c.created_at));
   const todaysEntry = checkins?.find((c) => entryDay(c) === today) ?? null;
   const recent = (checkins ?? []).filter((c) => entryDay(c) !== today).slice(0, 5);
-
-  // Show today's values once there are any, otherwise yesterday's.
-  const days = lastSevenDays();
-  const byDay = new Map((rows ?? []).map((r) => [r.day, r]));
-  const todayRow = byDay.get(today);
-  const showDay = todayRow && (todayRow.stress ?? todayRow.sleep ?? todayRow.emotion) !== null ? today : days[5];
-  const shown = byDay.get(showDay);
-  const history = (key: 'stress' | 'sleep' | 'emotion') => days.map((d) => byDay.get(d)?.[key] ?? null);
 
   const toggleReminder = async () => {
     if (reminderEnabled) {
@@ -150,16 +139,7 @@ export default function Today() {
         )}
       </FadeIn>
 
-      <FadeIn delay={170} style={{ marginTop: spacing.xl }}>
-        <Text style={styles.label}>{showDay === today ? 'TODAY' : 'YESTERDAY'}</Text>
-        <View style={styles.tiles}>
-          <FieldTile kind="stress" value={shown?.stress ?? null} history={history('stress')} />
-          <FieldTile kind="sleep" value={shown?.sleep ?? null} history={history('sleep')} delay={300} />
-          <FieldTile kind="mood" value={shown?.emotion ?? null} history={history('emotion')} delay={600} />
-        </View>
-      </FadeIn>
-
-      <FadeIn delay={250} style={{ marginTop: spacing.lg }}>
+      <FadeIn delay={200} style={{ marginTop: spacing.xl }}>
         <Card onPress={() => router.push('/deep-dives')} style={styles.insight}>
           <LinearGradient
             colors={['rgba(255,255,255,0)', fields.sleep.from]}
@@ -310,7 +290,6 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 4 },
   chipText: { fontFamily: fontFamily.semibold, fontSize: 11 },
-  tiles: { flexDirection: 'row', gap: 9 },
   insight: { overflow: 'hidden' },
   insightText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.ink, marginTop: spacing.sm },
   insightLink: { fontFamily: fontFamily.semibold, fontSize: 13, color: fields.sleep.ink, marginTop: spacing.md },
