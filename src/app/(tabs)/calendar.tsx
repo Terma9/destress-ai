@@ -54,10 +54,12 @@ export default function Calendar() {
   const checkin = data?.checkins.get(selected);
   const selectedDate = new Date(`${selected}T12:00:00`);
 
-  // One value per day of the month for the chart; future days stay empty.
-  const monthDays = Array.from({ length: daysInMonth }, (_, i) => dateKey(new Date(view.year, view.month, i + 1)));
+  // One value per day for the chart; the current month only runs until today.
+  const monthDays = Array.from({ length: daysInMonth }, (_, i) => dateKey(new Date(view.year, view.month, i + 1))).filter(
+    (d) => d <= today,
+  );
   const series = Object.fromEntries(
-    KINDS.map((k) => [k, monthDays.map((d) => (d > today ? null : valueOf(data?.metrics.get(d), k)))]),
+    KINDS.map((k) => [k, monthDays.map((d) => valueOf(data?.metrics.get(d), k))]),
   ) as Record<FieldKey, (number | null)[]>;
 
   async function saveAdjusted(values: DayValues, changed: boolean) {
@@ -224,6 +226,8 @@ export default function Calendar() {
             series={series}
             selectedIndex={monthDays.includes(selected) ? monthDays.indexOf(selected) : null}
             previous={data.previous}
+            focus={kind}
+            onFocus={setKind}
           />
         </FadeIn>
       )}
