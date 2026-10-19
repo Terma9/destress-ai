@@ -609,7 +609,7 @@ export const bossPlan = {
   title: 'Saying no to my boss',
   problem: 'Markus often gives you tasks after 5 pm. You say yes, work late and sleep badly.',
   plan: {
-    approach: 'Most late tasks can wait until the morning. One ready sentence and one clear rule with Markus make saying no easier.',
+    approach: 'Most late tasks can wait until the morning. A ready sentence makes saying no easier in the moment.',
     watch_for: 'You leave work by 6:30 pm on most days.',
     note: "You can't control what Markus asks. You can control your answer.",
     lessons: [
@@ -618,7 +618,6 @@ export const bossPlan = {
     ],
     steps: steps(
       ['When Markus asks after 5 pm, say: "I can do it tomorrow morning."', 1, true],
-      ['Ask Markus for 10 minutes. Agree: tasks after 4 pm wait until the next morning.', 10, true],
       ['If something is really urgent, ask: "What should I drop for this?"', 1, false],
     ),
   },
@@ -635,8 +634,8 @@ export const bossPlan = {
     'Maybe: "I can do it tomorrow morning."',
     'That gives us a clear picture. Tap "Make my plan".',
     'Update: I said "I can do it tomorrow morning" today. He just said fine!',
-    "That's a great first step. Next in your plan: a short talk with Markus about the 4 pm rule.",
-    'Update: we had the talk. He agreed to the 4 pm rule.',
-    'Well done, Jonas. Two of three steps are done. Let\'s see if the rule holds in the next weeks.',
+    "That's a great first step. Keep using the sentence. And if something is really urgent, ask what you can drop for it.",
+    'Update: I talked to Markus. He agreed that tasks after 4 pm wait until the next morning.',
+    'Well done, Jonas. That goes even beyond your plan. Let\'s see if the rule holds in the next weeks.',
   ).slice(1),
 };
