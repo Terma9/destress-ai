@@ -138,7 +138,21 @@ function BreathingOrb({ color }: { color: string }) {
   );
 }
 
-/** Stress Solving: one soft loop that becomes a straight line, with a dot at the goal. */
+/**
+ * A line that swings hard up and down, then slowly settles into a straight
+ * line: stress that gets sorted out. A sine wave whose height fades out.
+ */
+const CALMING_WAVE = (() => {
+  const points: string[] = [];
+  for (let x = 4; x <= 62; x += 1) {
+    const t = (x - 4) / 58;
+    const height = 22 * Math.pow(1 - t, 1.6);
+    points.push(`${x},${(28 - height * Math.sin(t * Math.PI * 7)).toFixed(1)}`);
+  }
+  return `M${points.join(' L')} L82,28`;
+})();
+
+/** Stress Solving: a restless line that winds down to calm, with a dot at the goal. */
 function UntangledLine({ color }: { color: string }) {
   const pulse = useSharedValue(0);
   useEffect(() => {
@@ -149,7 +163,7 @@ function UntangledLine({ color }: { color: string }) {
     <View style={{ width: 96, height: 56 }}>
       <Svg width={96} height={56} viewBox="0 0 96 56">
         <Path
-          d="M8 36 C 16 36, 32 32, 32 21 C 32 12, 19 12, 19 21 C 19 31, 34 28, 48 28 L 82 28"
+          d={CALMING_WAVE}
           stroke={color}
           strokeWidth={3}
           strokeLinecap="round"
