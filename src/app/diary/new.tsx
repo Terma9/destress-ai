@@ -132,7 +132,7 @@ export default function CheckinChat() {
             <Text style={styles.headerTitle}>
               {status === 'done' ? 'Saved to your calendar' : status === 'review' || status === 'storing' ? 'Your day' : resumed ? "Today's check-in" : "Tonight's check-in"}
             </Text>
-            <AiMark label={resumed ? "CONTINUING TODAY'S ENTRY" : 'WITH YOUR AI COMPANION'} size={11} />
+            <AiMark label={resumed ? "CONTINUING TODAY'S ENTRY" : undefined} size={11} />
           </View>
           <Pressable onPress={() => router.back()} hitSlop={10} style={styles.close} accessibilityLabel="Close">
             <Ionicons name="close" size={20} color={colors.inkSoft} />
@@ -279,16 +279,18 @@ function Summary({
         <Animated.View key={story.id} entering={FadeInUp.duration(420).delay(650 + i * 100)}>
           <PressableScale onPress={() => onOpenStory(story.id)}>
             <LinearGradient
-              colors={['#FDF0D8', '#F8DDB0']}
+              colors={[fields.mood.from, fields.mood.to]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.success}>
-              <Text style={styles.successEmoji}>🏆</Text>
+              <View style={styles.successIcon}>
+                <Ionicons name="trending-up" size={18} color={fields.mood.deep} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.successTitle}>Your plan is working: {story.title}</Text>
                 <Text style={styles.successBody}>Open it to mark it as solved, and share your story if you like.</Text>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#8A5A12" />
+              <Ionicons name="chevron-forward" size={18} color={fields.mood.ink} />
             </LinearGradient>
           </PressableScale>
         </Animated.View>
@@ -381,9 +383,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.7)',
   },
-  successEmoji: { fontSize: 28 },
-  successTitle: { fontFamily: fontFamily.bold, fontSize: 15, color: '#6B4510' },
-  successBody: { ...font.small, color: '#8A5A12', marginTop: 2 },
+  successIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.75)', alignItems: 'center', justifyContent: 'center' },
+  successTitle: { fontFamily: fontFamily.bold, fontSize: 15, color: fields.mood.ink },
+  successBody: { ...font.small, color: fields.mood.ink, opacity: 0.8, marginTop: 2 },
   doneBtn: { borderRadius: radii.md, height: 54, alignItems: 'center', justifyContent: 'center', ...shadow.lifted },
   doneText: { fontFamily: fontFamily.semibold, fontSize: 16, color: colors.ivory },
 });

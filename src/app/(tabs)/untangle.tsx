@@ -46,7 +46,7 @@ export default function UntangleHome() {
               <Ionicons name="arrow-forward" size={18} color={fields.stress.ink} />
             </View>
             <Text style={[styles.modeText, { color: fields.stress.ink }]}>
-              stressed right now? slow down together in a few minutes, with small tips that helped you before
+              Stressed right now? Slow down together in a few minutes, with small exercises and tips.
             </Text>
             {avgDrop !== null && (
               <Text style={[styles.modeStat, { color: fields.stress.deep }]}>
@@ -66,7 +66,7 @@ export default function UntangleHome() {
               <Ionicons name="arrow-forward" size={18} color={fields.sleep.ink} />
             </View>
             <Text style={[styles.modeText, { color: fields.sleep.ink }]}>
-              something keeps stressing you? work out a plan that fits you, based on your check-ins and patterns
+              Something keeps stressing you? Work out a plan that fits you, based on your check-ins and patterns.
             </Text>
           </LivingGradient>
         </PressableScale>
@@ -74,7 +74,7 @@ export default function UntangleHome() {
 
       <FadeIn delay={150} style={{ marginTop: spacing.xl }}>
         <Text style={styles.label}>MY PLANS</Text>
-        <Text style={styles.sectionHint}>one plan per stressor · tell how it goes and it grows with you</Text>
+        <Text style={styles.sectionHint}>One plan per stressor. Tell me how it goes, and the plan grows with you.</Text>
         {error ? (
           <Text style={styles.note}>Couldn't load your plans. Check your connection.</Text>
         ) : sessions === null ? (
@@ -107,7 +107,7 @@ export default function UntangleHome() {
       {stories && stories.length > 0 && (
         <FadeIn delay={280} style={{ marginTop: spacing.xl }}>
           <Text style={styles.label}>YOUR SUCCESS STORIES</Text>
-          <Text style={styles.sectionHint}>share them in the community if you like</Text>
+          <Text style={styles.sectionHint}>Share them in the community if you like.</Text>
           <View style={{ gap: spacing.sm }}>
             {stories.map((st) => (
               <Card key={st.id} onPress={() => router.push({ pathname: '/success/[id]', params: { id: st.id } })}>

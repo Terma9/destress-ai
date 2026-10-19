@@ -114,10 +114,7 @@ export default function StoryArticle() {
           </View>
           <Text style={styles.title}>{story.title}</Text>
           <Text style={styles.meta}>
-            Anonymous · {readingMinutes(story.body)} min read
-            {story.intensity_before !== null && story.intensity_after !== null
-              ? ` · stress ${story.intensity_before} → ${story.intensity_after}`
-              : ''}
+            {story.is_mine ? 'You' : (story.author_name ?? 'Anonymous')} · {readingMinutes(story.body)} min read
           </Text>
         </Animated.View>
 
@@ -149,7 +146,7 @@ export default function StoryArticle() {
                     <Ionicons name="person" size={11} color={fields.mood.deep} />
                   </View>
                   <Text style={styles.commentMeta}>
-                    {c.is_mine ? 'You' : 'Anonymous'}
+                    {c.is_mine ? 'You' : (c.author_name ?? 'Anonymous')}
                     {c.is_example ? ' · example comment' : ''} · {new Date(c.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' })}
                   </Text>
                   <View style={{ flex: 1 }} />

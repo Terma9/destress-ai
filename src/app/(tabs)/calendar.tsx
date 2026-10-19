@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeIn as Appear, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import Animated, { FadeIn as Appear, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { InlineLoader } from '@/components/brand';
 import { FIELD_LABELS, fieldShade } from '@/components/fields';
 import { FadeIn, PressableScale } from '@/components/motion';
@@ -109,7 +109,7 @@ export default function Calendar() {
       ) : !data ? (
         <InlineLoader />
       ) : (
-        <View style={styles.grid} key={`${view.year}-${view.month}-${kind}`}>
+        <View style={styles.grid} key={`${view.year}-${view.month}`}>
           {Array.from({ length: leading }, (_, i) => (
             <View key={`pad-${i}`} style={styles.cellBox} />
           ))}
@@ -120,7 +120,7 @@ export default function Calendar() {
             const future = day > today;
             const isSelected = day === selected;
             return (
-              <Animated.View key={day} entering={Appear.duration(320).delay(i * 14)} style={styles.cellBox}>
+              <Animated.View key={day} entering={Appear.duration(260).delay(i * 6)} style={styles.cellBox}>
                 <Pressable
                   disabled={future}
                   onPress={() => {
@@ -237,7 +237,7 @@ function Segmented({ value, onChange }: { value: FieldKey; onChange: (k: FieldKe
   const index = KINDS.indexOf(value);
   const x = useSharedValue(0);
   useEffect(() => {
-    if (width) x.value = withSpring((index * width) / KINDS.length, { damping: 20, stiffness: 220 });
+    if (width) x.value = withTiming((index * width) / KINDS.length, { duration: 240 });
   }, [index, width]);
   const pill = useAnimatedStyle(() => ({ transform: [{ translateX: x.value }] }));
   return (

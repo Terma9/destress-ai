@@ -21,9 +21,8 @@ import {
   THEME_LABELS,
   unpublishStory,
 } from '@/data/community';
-import { colors, font, radii, spacing } from '@/theme';
+import { colors, fields, font, radii, spacing } from '@/theme';
 
-const GOLD = ['#F59E0B', '#F97316'] as const;
 
 export default function SuccessStoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -108,8 +107,13 @@ export default function SuccessStoryScreen() {
     <Screen>
       {back}
 
-      <GradientCard colors={GOLD}>
-        <Text style={styles.trophy}>🏆</Text>
+      <GradientCard colors={[fields.mood.from, fields.mood.to]}>
+        <View style={styles.badgeRow}>
+          <View style={styles.badgeIcon}>
+            <Ionicons name="ribbon-outline" size={20} color={fields.mood.deep} />
+          </View>
+          <Text style={styles.badgeLabel}>SOLVED · YOUR STORY</Text>
+        </View>
         <Text style={styles.headTitle}>{story.title}</Text>
         <View style={styles.headRow}>
           <View style={styles.headChip}>
@@ -254,11 +258,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  trophy: { fontSize: 34 },
-  headTitle: { ...font.h3, color: colors.white, marginTop: spacing.sm },
+  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  badgeIcon: { width: 38, height: 38, borderRadius: 19, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },
+  badgeLabel: { ...font.label, color: fields.mood.deep },
+  headTitle: { ...font.h2, color: colors.ink, marginTop: spacing.md },
   headRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
-  headChip: { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 4 },
-  headChipText: { ...font.small, color: colors.white, fontWeight: '600' },
+  headChip: { backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 4 },
+  headChipText: { ...font.small, color: fields.mood.ink, fontWeight: '600' },
   body: { ...font.body, color: colors.text, lineHeight: 21 },
   input: {
     ...font.body,

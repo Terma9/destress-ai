@@ -14,7 +14,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInDown, FadeOutDown, FadeOutLeft, LinearTransition } from 'react-native-reanimated';
 import { InlineLoader } from '@/components/brand';
 import { Card, EmptyState, Screen, TAB_BAR_SPACE } from '@/components/ui';
-import { intensityColor } from '@/components/untangle';
 import { type FeedStory, fetchFeed, readingMinutes, reportStory, THEME_LABELS, voteStory } from '@/data/community';
 import { colors, font, fontFamily, radii, shadow, spacing } from '@/theme';
 
@@ -182,16 +181,9 @@ function StoryCard({
         <Text style={styles.theme}>{THEME_LABELS[story.theme] ?? story.theme}</Text>
         {story.is_example && <Text style={styles.badge}>Example</Text>}
         {story.is_mine && <Text style={[styles.badge, styles.mineBadge]}>Your story</Text>}
-        <View style={{ flex: 1 }} />
-        {story.intensity_before !== null && story.intensity_after !== null && (
-          <Text style={styles.scores}>
-            <Text style={{ color: intensityColor(story.intensity_before) }}>{story.intensity_before}</Text>
-            {' → '}
-            <Text style={{ color: intensityColor(story.intensity_after) }}>{story.intensity_after}</Text>
-          </Text>
-        )}
       </View>
       <Text style={styles.cardTitle}>{story.title}</Text>
+      <Text style={styles.author}>{story.is_mine ? 'You' : (story.author_name ?? 'Anonymous')}</Text>
       <Text style={styles.excerpt} numberOfLines={4}>
         {story.body}
       </Text>
@@ -280,6 +272,7 @@ const styles = StyleSheet.create({
   cardTitle: { ...font.title, color: colors.text },
   situation: { ...font.body, color: colors.textMuted, marginTop: 4, lineHeight: 20 },
   body: { ...font.body, color: colors.text, lineHeight: 21 },
+  author: { ...font.small, color: colors.textMuted, marginTop: 2 },
   excerpt: { ...font.body, color: colors.inkSoft, lineHeight: 21, marginTop: 6 },
   readMeta: { fontFamily: fontFamily.semibold, fontSize: 13, color: colors.ink, marginTop: spacing.sm },
   footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },

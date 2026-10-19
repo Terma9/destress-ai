@@ -24,6 +24,17 @@ import { colors, font, fontFamily, gradients, radii, shadow, spacing } from '@/t
 
 type Stage = 'loading' | 'intake' | 'talk' | 'planning';
 
+/**
+ * When to offer "Make my plan": the AI marks the reply in which it knows
+ * enough (READY_MARK, hidden from the user) and may only do so after at least
+ * MIN_ANSWERS answers; after MAX_ANSWERS the button appears anyway.
+ */
+const READY_MARK = /\s*\[\[ready\]\]\s*/gi;
+/** Hides a marker that is still streaming in ("[[rea"). */
+const PARTIAL_MARK = /\s*\[\[?[a-z]*\]?$/i;
+const MIN_ANSWERS = 2;
+const MAX_ANSWERS = 5;
+
 export default function StressSolving() {
   const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
   const router = useRouter();
@@ -37,6 +48,7 @@ export default function StressSolving() {
   /** How many messages were already saved, so we know if the user added something. */
   const [savedCount, setSavedCount] = useState(0);
   const [replying, setReplying] = useState(false);
+  const [aiReady, setAiReady] = useState(false);
   const [voiceBusy, setVoiceBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,10 +75,13 @@ export default function StressSolving() {
     setReplying(true);
     setError(null);
     try {
-      await streamUntangleReply(history, intensity!, (t) => setMessages([...history, { role: 'assistant', content: t }]), {
-        mode: 'plan',
-        sessionId,
-      });
+      const full = await streamUntangleReply(
+        history,
+        intensity!,
+        (t) => setMessages([...history, { role: 'assistant', content: t.replace(READY_MARK, ' ').replace(PARTIAL_MARK, '').trim() }]),
+        { mode: 'plan', sessionId },
+      );
+      if (/\[\[ready\]\]/i.test(full)) setAiReady(true);
     } catch (err) {
       setMessages(history);
       setError((err as Error).message);
@@ -102,6 +117,9 @@ export default function StressSolving() {
   };
 
   const hasAiReply = messages.slice(sessionId ? savedCount : 0).some((m) => m.role === 'assistant');
+  const answers = messages.filter((m) => m.role === 'user').length - 1;
+  // Updating an existing plan: as soon as they told something new. New plan: when the AI knows enough.
+  const canPlan = sessionId ? hasAiReply : (aiReady && answers >= MIN_ANSWERS) || answers >= MAX_ANSWERS;
   const addedSomething = messages.length > savedCount;
   const waiting = replying && messages[messages.length - 1]?.role !== 'assistant';
   const busy = replying || voiceBusy;
@@ -167,7 +185,7 @@ export default function StressSolving() {
           </ScrollView>
 
           <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md }]}>
-            {hasAiReply && (
+            {canPlan && (
               <View style={styles.actions}>
                 {sessionId && (
                   <PressableScale onPress={saveAndClose} disabled={busy} style={[styles.secondary, busy && styles.dim]}>

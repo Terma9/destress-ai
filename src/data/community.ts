@@ -38,6 +38,8 @@ export type FeedStory = {
   title: string;
   /** The published blog post. */
   body: string;
+  /** Username shown with the post; null = "Anonymous" (always for real users). */
+  author_name: string | null;
   intensity_before: number | null;
   intensity_after: number | null;
   published_at: string;
@@ -53,7 +55,14 @@ export type StoryText = { title: string; situation: string; solution: string; co
 
 export type Review = { title: string; body: string; allowed: boolean; reason: string; crisis: boolean; personal_details: string[] };
 
-export type StoryComment = { id: string; body: string; created_at: string; is_mine: boolean; is_example: boolean };
+export type StoryComment = {
+  id: string;
+  body: string;
+  author_name: string | null;
+  created_at: string;
+  is_mine: boolean;
+  is_example: boolean;
+};
 
 /** Rough reading time for a post. */
 export const readingMinutes = (body: string) => Math.max(1, Math.round(body.split(/\s+/).length / 200));

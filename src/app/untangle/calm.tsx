@@ -26,7 +26,6 @@ import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing } f
 
 type Stage = 'intake' | 'breathe' | 'talk' | 'rate' | 'saving' | 'done';
 const BREATHE_FROM = 8;
-const NO_WORDS = "I'm stressed right now and want to calm down.";
 
 export default function CalmNow() {
   const router = useRouter();
@@ -162,11 +161,8 @@ export default function CalmNow() {
                 <IntensityPicker value={before} onChange={setBefore} />
                 {before !== null && (
                   <Animated.View entering={FadeInDown.duration(400)} style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-                    <Text style={styles.question}>What's going on?</Text>
-                    <Text style={styles.hint}>Optional. A few words or the mic is enough.</Text>
-                    <PressableScale onPress={() => send(NO_WORDS)} style={styles.secondary}>
-                      <Text style={styles.secondaryText}>Skip, just help me calm down</Text>
-                    </PressableScale>
+                    <Text style={styles.question}>What is stressing you?</Text>
+                    <Text style={styles.hint}>Describe it in a few words or tap the mic. Then we slow down together.</Text>
                   </Animated.View>
                 )}
               </Animated.View>
