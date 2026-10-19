@@ -129,7 +129,9 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
 function LeftColumn({ width, height }: { width: number; height: number }) {
   const isDemo = useAppStore((s) => s.demo);
   const [showInfo, setShowInfo] = useState(false);
-  const [openFeature, setOpenFeature] = useState<string | null>(FEATURES[0].title);
+  const [openFeatures, setOpenFeatures] = useState<string[]>([]);
+  const toggleFeature = (title: string) =>
+    setOpenFeatures((open) => (open.includes(title) ? open.filter((t) => t !== title) : [...open, title]));
   const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
 
   async function loadDemo() {
@@ -187,14 +189,13 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={styles.panelBody} showsVerticalScrollIndicator={false}>
-            {/* Titles only; a feature's text opens on hover (or tap), one at a time. */}
+            {/* Titles only; a click opens a feature's text, another click closes it. */}
             {FEATURES.map((f) => {
-              const isOpen = openFeature === f.title;
+              const isOpen = openFeatures.includes(f.title);
               return (
                 <Pressable
                   key={f.title}
-                  onHoverIn={() => setOpenFeature(f.title)}
-                  onPress={() => setOpenFeature(isOpen ? null : f.title)}
+                  onPress={() => toggleFeature(f.title)}
                   style={[styles.feature, isOpen && styles.featureOpen]}
                   accessibilityRole="button"
                   accessibilityState={{ expanded: isOpen }}>
