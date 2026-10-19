@@ -113,8 +113,9 @@ const styles = StyleSheet.create({
   demoText: { ...font.body, color: colors.inkSoft },
   demoLink: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
   demoError: { ...font.small, color: colors.danger, textAlign: 'center' },
-  container: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'space-between' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: spacing.xl },
+  container: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'center' },
+  // Logo, text and form sit together in the middle, with one calm gap between.
+  center: { alignItems: 'center', marginBottom: 40 },
   textBlock: { alignItems: 'center', marginTop: -spacing.sm },
   brand: { fontFamily: fontFamily.bold, fontSize: 34, letterSpacing: -1, color: colors.ink },
   tagline: { ...font.body, fontSize: 15, color: colors.inkSoft, textAlign: 'center', lineHeight: 23, marginTop: spacing.md, maxWidth: 290 },
