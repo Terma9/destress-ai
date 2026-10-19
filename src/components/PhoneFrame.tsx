@@ -156,8 +156,8 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
         </Text>
       </View>
       <Text style={styles.pitch}>
-        Most stress trackers make you fill in sliders. Destress AI talks with you for two minutes each evening, tracks
-        stress, sleep and mood from the conversation, and learns what actually helps you.
+        Most stress trackers make you fill in sliders. Destress AI talks with you for two minutes each evening, reads
+        your stress, sleep and mood from the conversation, and helps you solve what keeps stressing you.
       </Text>
       <Pressable onPress={() => setShowInfo(true)} style={styles.infoLink} accessibilityRole="button">
         <Ionicons name="information-circle-outline" size={18} color={colors.ink} />
