@@ -12,6 +12,7 @@
  * Only works on accounts without check-ins, so real entries never mix with demo data.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
+import { checkQuota } from '../_shared/quota.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { indexExampleStories, storyDocument } from '../_shared/community.ts';
 import * as demo from '../_shared/fixtures/demo-jonas.ts';
@@ -43,6 +44,8 @@ export default {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
+    const overQuota = await checkQuota(ctx.supabase);
+    if (overQuota) return overQuota;
     const today = parseDay(await req.json().catch(() => null)) ?? toDay(new Date());
     const at = dater(today);
     const db = ctx.supabase;

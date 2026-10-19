@@ -14,6 +14,7 @@
  * (column privileges), so moderation can't be skipped.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
+import { checkQuota } from '../_shared/quota.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { indexExampleStories, reviewStory, storyDocument, storyMaterial } from '../_shared/community.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
@@ -28,6 +29,8 @@ export default {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
+    const overQuota = await checkQuota(ctx.supabase);
+    if (overQuota) return overQuota;
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const storyId = typeof body?.storyId === 'string' ? body.storyId : null;
     const action = body?.action;

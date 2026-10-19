@@ -12,6 +12,7 @@
  * which also keeps the cost per user in check.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
+import { checkQuota } from '../_shared/quota.ts';
 import {
   ANALYSIS_SCHEMA,
   type AnalysisOutput,
@@ -50,6 +51,8 @@ export default {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
+    const overQuota = await checkQuota(ctx.supabase);
+    if (overQuota) return overQuota;
     const body = await req.json().catch(() => null);
     const language = parseLanguage(body);
     const today = parseToday(body);

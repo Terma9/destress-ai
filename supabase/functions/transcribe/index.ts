@@ -9,6 +9,7 @@
  * the app keeps the text, not the recording (data minimization).
  */
 import { withSupabase } from 'npm:@supabase/server@1';
+import { checkQuota } from '../_shared/quota.ts';
 import { getTranscriber } from '../_shared/llm/index.ts';
 
 /** ~2 minutes of compressed speech is around 1–2 MB; the API itself allows 25 MB. */
@@ -19,6 +20,8 @@ export default {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
+    const overQuota = await checkQuota(ctx.supabase);
+    if (overQuota) return overQuota;
 
     const mimeType = req.headers.get('content-type') ?? '';
     if (!mimeType.startsWith('audio/')) {

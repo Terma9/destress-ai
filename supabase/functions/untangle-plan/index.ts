@@ -9,6 +9,7 @@
  * before" citing past check-ins (validated here), a note and a risk level.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
+import { checkQuota } from '../_shared/quota.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 import {
   buildPlanPrompt,
@@ -26,6 +27,8 @@ export default {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
+    const overQuota = await checkQuota(ctx.supabase);
+    if (overQuota) return overQuota;
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
     const intensity = parseIntensity(body);

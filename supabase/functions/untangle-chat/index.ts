@@ -9,6 +9,7 @@
  *        user is telling how their existing plan goes.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
+import { checkQuota } from '../_shared/quota.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 import { buildCalmPrompt, buildUntangleChatPrompt, loadPlanSession, loadUntangleContext } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseIntensity, parseMessages } from '../_shared/validation.ts';
@@ -18,6 +19,8 @@ export default {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
+    const overQuota = await checkQuota(ctx.supabase);
+    if (overQuota) return overQuota;
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
     const intensity = parseIntensity(body);
