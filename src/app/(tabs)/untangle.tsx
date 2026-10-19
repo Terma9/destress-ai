@@ -138,7 +138,7 @@ function BreathingOrb({ color }: { color: string }) {
   );
 }
 
-/** Stress Solving: a tangled line that becomes straight, with a dot at the goal. */
+/** Stress Solving: one soft loop that becomes a straight line, with a dot at the goal. */
 function UntangledLine({ color }: { color: string }) {
   const pulse = useSharedValue(0);
   useEffect(() => {
@@ -149,10 +149,11 @@ function UntangledLine({ color }: { color: string }) {
     <View style={{ width: 96, height: 56 }}>
       <Svg width={96} height={56} viewBox="0 0 96 56">
         <Path
-          d="M6 34 C 12 10, 30 10, 24 30 S 8 46, 20 44 S 40 18, 44 30 S 56 28, 62 28 L 82 28"
+          d="M8 36 C 16 36, 32 32, 32 21 C 32 12, 19 12, 19 21 C 19 31, 34 28, 48 28 L 82 28"
           stroke={color}
           strokeWidth={3}
           strokeLinecap="round"
+          strokeLinejoin="round"
           fill="none"
         />
         <Circle cx={84} cy={28} r={5} fill={color} />
