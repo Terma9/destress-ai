@@ -1,10 +1,10 @@
 /**
  * The web demo on a laptop: instead of stretching the app across the screen,
  * shows it in a realistic phone (Dynamic Island, status bar, side buttons).
- * On the left, the project in short: what it does, each feature as a toggle,
- * the tech stack, and a button that loads the demo at any time. On the right,
- * a QR code that opens the same link on a phone. On phones and in the native
- * app it renders the app unchanged.
+ * Two calm columns: on the left the project in short (each feature as a
+ * toggle, the tech stack, a button that loads the demo at any time and a QR
+ * code for opening it on a phone), on the right the phone. On phones and in
+ * the native app it renders the app unchanged.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -21,7 +21,7 @@ import { colors, fields, font, fontFamily, gradients, radii, shadow, tints } fro
 
 const MIN_DESKTOP_WIDTH = 700;
 /** From this width there is room for the project intro next to the phone. */
-const WITH_INTRO_WIDTH = 1180;
+const WITH_INTRO_WIDTH = 960;
 const MAX_HEIGHT = 860;
 const RATIO = 0.47; // width / height of a modern phone
 const BEZEL = 11;
@@ -38,7 +38,7 @@ const SECTIONS: Section[] = [
     tint: fields.stress.from,
     ink: fields.stress.deep,
     title: 'Evening check-in',
-    text: 'A two-minute conversation, typed or spoken, instead of sliders. The AI asks about your day and supports you. Afterwards it suggests stress, sleep and mood (0–10) with a reason for each, and you confirm or adjust. One entry per day, saved to your calendar.',
+    text: 'Talk about your day for two minutes, by voice or text. The app remembers your past days, asks follow-up questions and fills in stress, sleep and mood with a short reason each. You confirm with one tap.',
   },
   {
     key: 'insights',
@@ -46,7 +46,7 @@ const SECTIONS: Section[] = [
     tint: fields.sleep.from,
     ink: fields.sleep.deep,
     title: 'Weekly Insights',
-    text: 'Once a week the app looks back by itself: this week compared to last week, the patterns in your days (each linked to the entries behind it), what helped, and one question for the week ahead. The numbers are computed in code; the AI only interprets them.',
+    text: 'A weekly look back: how the week compared to the last, which patterns repeat ("Your Sundays are always the hardest") and what helped. Each finding links to the days behind it.',
   },
   {
     key: 'calm',
@@ -54,7 +54,7 @@ const SECTIONS: Section[] = [
     tint: fields.mood.from,
     ink: fields.mood.deep,
     title: 'Untangle · Calm now',
-    text: 'For stress in the moment. You say what is going on and how intense it is. The AI calms you down step by step with short exercises, support and small tips that helped you before. At the end you rate it again, for example 8 → 4.',
+    text: 'Stressed right now? The app calms you down step by step, with exercises and tips picked from what has helped you before.',
   },
   {
     key: 'solve',
@@ -62,7 +62,7 @@ const SECTIONS: Section[] = [
     tint: fields.sleep.from,
     ink: fields.sleep.deep,
     title: 'Untangle · Stress solving',
-    text: 'For stress that keeps coming back. The AI asks until it knows enough, then builds a plan based on your own check-ins and patterns. You keep telling it how it goes, and the plan changes with you. Once solved, you can share your story anonymously in the community.',
+    text: "Stress that keeps coming back? The app first finds out what's behind it, then makes a plan with you based on your own history. As you go, the plan adapts.",
   },
   {
     key: 'stack',
@@ -71,12 +71,12 @@ const SECTIONS: Section[] = [
     ink: colors.ink,
     title: 'Tech stack',
     chips: [
-      'Expo · React Native (iOS, Android, web)',
-      'Supabase · Postgres with row-level security',
-      'Edge Functions (Deno)',
-      'OpenAI · streaming, structured output, speech-to-text',
-      'RAG · pgvector over topics of past check-ins',
-      'AI moderation & anonymisation',
+      'Expo / React Native',
+      'Supabase (Postgres + RLS)',
+      'Edge Functions',
+      'OpenAI (chat, structured output, speech-to-text, embeddings)',
+      'RAG with pgvector',
+      'AI moderation',
       'Daily AI quotas',
     ],
   },
@@ -98,7 +98,7 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
       end={{ x: 1, y: 1 }}
       style={styles.page}>
       <View style={styles.row}>
-        {width >= WITH_INTRO_WIDTH && <Intro maxHeight={phoneHeight} />}
+        {width >= WITH_INTRO_WIDTH && <Intro maxHeight={phoneHeight} url={url} />}
 
         <View style={{ width: phoneWidth, height: phoneHeight }}>
           {/* Side buttons sit outside the screen. */}
@@ -125,22 +125,13 @@ export function PhoneFrame({ children }: { children: ReactNode }) {
             </View>
           </View>
         </View>
-
-        <View style={styles.qrCard}>
-          <View style={styles.qrBox}>
-            <QRCode value={url} size={128} color="#1C1B19" backgroundColor="#FFFFFF" />
-          </View>
-          <Text style={styles.qrTitle}>Try it on your phone</Text>
-          <Text style={styles.qrText}>Scan with your camera. It opens right in the browser, no app to install.</Text>
-          <Text style={styles.qrUrl}>{url.replace(/^https?:\/\//, '')}</Text>
-        </View>
       </View>
     </LinearGradient>
   );
 }
 
 /** The project in short, for an interviewer opening the link on a laptop. */
-function Intro({ maxHeight }: { maxHeight: number }) {
+function Intro({ maxHeight, url }: { maxHeight: number; url: string }) {
   const isDemo = useAppStore((s) => s.demo);
   const [open, setOpen] = useState<string | null>(null);
   const [demo, setDemo] = useState<'idle' | 'loading' | { error: string }>('idle');
@@ -226,6 +217,17 @@ function Intro({ maxHeight }: { maxHeight: number }) {
           : 'Four weeks of Jonas, a consultant whose Sundays weigh on him. Today is left open for you to try the check-in.'}
       </Text>
 
+      <View style={styles.qrCard}>
+        <View style={styles.qrBox}>
+          <QRCode value={url} size={76} color="#1C1B19" backgroundColor="#FFFFFF" />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.qrTitle}>Try it on your phone</Text>
+          <Text style={styles.qrText}>Scan with your camera. Opens in the browser, no install.</Text>
+          <Text style={styles.qrUrl}>{url.replace(/^https?:\/\//, '')}</Text>
+        </View>
+      </View>
+
       <Pressable onPress={() => Linking.openURL(LINKEDIN)} style={styles.bylineRow} accessibilityRole="link">
         <Text style={styles.byline}>
           Built by <Text style={styles.bylineName}>Simon Kraus</Text> · 2026
@@ -238,7 +240,7 @@ function Intro({ maxHeight }: { maxHeight: number }) {
 
 const styles = StyleSheet.create({
   page: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 56 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 88 },
 
   // Phone
   phone: {
@@ -276,7 +278,7 @@ const styles = StyleSheet.create({
   },
 
   // Intro
-  intro: { width: 340, flexGrow: 0 },
+  intro: { width: 380, flexGrow: 0 },
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brand: { fontFamily: fontFamily.bold, fontSize: 34, letterSpacing: -1, color: colors.ink },
   pitch: { ...font.body, fontSize: 15, lineHeight: 23, color: colors.inkSoft, marginTop: 14 },
@@ -307,9 +309,9 @@ const styles = StyleSheet.create({
   bylineName: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
 
   // QR
-  qrCard: { width: 190 },
-  qrBox: { alignSelf: 'flex-start', padding: 12, backgroundColor: '#FFFFFF', borderRadius: 18, ...shadow.soft },
-  qrTitle: { fontFamily: fontFamily.semibold, fontSize: 15, color: colors.ink, marginTop: 14 },
-  qrText: { ...font.small, color: colors.textMuted, marginTop: 4, lineHeight: 17 },
-  qrUrl: { ...font.small, fontFamily: fontFamily.semibold, color: colors.inkSoft, marginTop: 8 },
+  qrCard: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 22 },
+  qrBox: { padding: 8, backgroundColor: '#FFFFFF', borderRadius: 14, ...shadow.soft },
+  qrTitle: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink },
+  qrText: { ...font.small, color: colors.textMuted, marginTop: 2, lineHeight: 17 },
+  qrUrl: { ...font.small, fontFamily: fontFamily.semibold, color: colors.inkSoft, marginTop: 4 },
 });
