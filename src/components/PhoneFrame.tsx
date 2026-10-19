@@ -46,7 +46,7 @@ const FEATURES = [
     tint: fields.sleep.from,
     ink: fields.sleep.deep,
     title: 'Weekly Insights',
-    text: 'A weekly look back: how the week compared to the last, which patterns repeat ("Late evenings at work cost you sleep") and what helped. Each finding links to the days behind it.',
+    text: 'A weekly look back: how the week compared to the last, which patterns repeat ("Saying yes to late tasks stresses you") and what helped. Each finding links to the days behind it.',
   },
   {
     icon: 'leaf-outline',

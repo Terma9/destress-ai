@@ -430,7 +430,7 @@ export const checkins: DemoCheckin[] = [
 // 5 hours of sleep. After a walk or football: about 8 hours.
 export const analysis = {
   week: 4,
-  insight: 'Late tasks from Markus raise your stress. Walks and football help you sleep.',
+  insight: 'You often say yes to late tasks, and that costs you sleep. Walks and football help.',
   question: 'How can you fit in more walks or football this week?',
   worked: [
     { text: 'Walks and football', source: 'checkin' },
@@ -439,17 +439,17 @@ export const analysis = {
   ],
   patterns: [
     {
-      title: 'Late tasks raise your stress',
-      description: 'Stress 8 on days with a late task from Markus. Stress 4 on other days.',
+      title: 'Saying yes to late tasks stresses you',
+      description: 'Stress 8 on days you said yes to a late task from Markus. Stress 4 on other days.',
       icon: 'work',
       findings: [
-        { text: 'Stress 8 on these five days. Each time, Markus gave you a task after 5 pm.', evidence: ['w1-mon', 'w1-wed', 'w2-mon', 'w2-wed', 'w3-mon'] },
+        { text: 'Stress 8 on these five days. Each time, you said yes to a task after 5 pm.', evidence: ['w1-mon', 'w1-wed', 'w2-mon', 'w2-wed', 'w3-mon'] },
       ],
       questions: ['What could you say next time he asks late?'],
     },
     {
-      title: 'Late evenings cost you sleep',
-      description: 'After a late evening you slept about 5 hours. Usually you sleep 7 to 8.',
+      title: 'After a late evening, you lie awake',
+      description: 'After a late evening you lay awake and slept about 5 hours. Usually you sleep 7 to 8.',
       icon: 'sleep',
       findings: [
         { text: 'About 5 hours of sleep after each late evening.', evidence: ['w1-tue', 'w1-thu', 'w2-tue', 'w3-tue'] },
@@ -457,7 +457,7 @@ export const analysis = {
       questions: ['What helps you stop thinking about work before bed?'],
     },
     {
-      title: 'Walks and football help you sleep',
+      title: 'Walks and football bring back your sleep',
       description: 'After a walk or football you slept about 8 hours.',
       icon: 'health',
       findings: [
