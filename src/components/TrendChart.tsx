@@ -2,8 +2,8 @@
  * The month at a glance: stress, sleep and mood over the days of the month,
  * with each average below compared to last month.
  *
- * Kept calm on purpose: the lines are a 3-day average drawn as soft curves
- * (daily values zigzag too much to read), small gaps are bridged, and only
+ * Kept calm on purpose: each day's value is drawn as a soft curve, small
+ * gaps are bridged, and only
  * the value in focus (the one picked in the calendar) is drawn strongly with
  * a soft fill; the other two stay faint in the background for comparison.
  */
@@ -24,15 +24,6 @@ const MAX_GAP = 3;
 
 type Series = Record<FieldKey, (number | null)[]>;
 type Point = { x: number; y: number };
-
-/** 3-day centred average over the known values (a day without data stays empty). */
-function smooth(values: (number | null)[]): (number | null)[] {
-  return values.map((v, i) => {
-    if (v === null) return null;
-    const window = [values[i - 1], v, values[i + 1]].filter((n): n is number => n !== null && n !== undefined);
-    return window.reduce((a, b) => a + b, 0) / window.length;
-  });
-}
 
 /** Splits into runs of known values, bridging gaps of up to MAX_GAP days. */
 function runs(values: (number | null)[]): [number, number][][] {
@@ -89,7 +80,7 @@ export function TrendChart({
   const y = (v: number) => PAD_Y + (1 - v / 10) * (HEIGHT - 2 * PAD_Y);
 
   const lines = Object.fromEntries(
-    KINDS.map((k) => [k, runs(smooth(series[k])).map((run) => run.map(([i, v]) => ({ x: x(i), y: y(v) })))]),
+    KINDS.map((k) => [k, runs(series[k]).map((run) => run.map(([i, v]) => ({ x: x(i), y: y(v) })))]),
   ) as Record<FieldKey, Point[][]>;
 
   const hasData = KINDS.some((k) => series[k].some((v) => v !== null));
@@ -100,7 +91,7 @@ export function TrendChart({
     <View style={styles.card}>
       <View style={styles.head}>
         <Text style={styles.label}>THIS MONTH</Text>
-        <Text style={styles.hint}>3-day average</Text>
+        <Text style={styles.hint}>Daily values</Text>
       </View>
       <View style={styles.chart} onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
         {width > 0 && hasData && (
@@ -160,7 +151,7 @@ export function TrendChart({
             {selectedIndex !== null && series[focus][selectedIndex] !== null && (
               <Circle
                 cx={x(selectedIndex)}
-                cy={y(smooth(series[focus])[selectedIndex]!)}
+                cy={y(series[focus][selectedIndex]!)}
                 r={4.5}
                 fill="#FFFFFF"
                 stroke={f.deep}

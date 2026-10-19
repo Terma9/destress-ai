@@ -2,8 +2,8 @@
  * Untangle: two ways to deal with stress.
  *   Calm now       — stressed right now? A few minutes to slow down together.
  *   Stress solving — something keeps coming back? A plan that fits you.
- * Below: "My plans" (one living plan per stressor), solved plans, and
- * success stories (which can be shared in the community).
+ * Below: "My plans" (one living plan per stressor) and "Solved": every
+ * solved plan is a success story, which can be shared in the community.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -24,7 +24,6 @@ export default function UntangleHome() {
 
   const plans = (sessions ?? []).filter((s) => s.kind === 'plan');
   const active = plans.filter((s) => s.status === 'active');
-  const solved = plans.filter((s) => s.status === 'solved');
   const calm = (sessions ?? []).filter((s) => s.kind === 'calm' && s.intensity_after !== null);
   const avgDrop = calm.length
     ? Math.round((calm.reduce((sum, s) => sum + (s.intensity_before - s.intensity_after!), 0) / calm.length) * 10) / 10
@@ -74,7 +73,7 @@ export default function UntangleHome() {
 
       <FadeIn delay={150} style={{ marginTop: spacing.xl }}>
         <Text style={styles.label}>MY PLANS</Text>
-        <Text style={styles.sectionHint}>One plan per stressor. Tell me how it goes, and the plan grows with you.</Text>
+        <Text style={styles.sectionHint}>One plan per stressor. Give updates, and the plan grows with you.</Text>
         {error ? (
           <Text style={styles.note}>Couldn't load your plans. Check your connection.</Text>
         ) : sessions === null ? (
@@ -93,30 +92,22 @@ export default function UntangleHome() {
         )}
       </FadeIn>
 
-      {solved.length > 0 && (
-        <FadeIn delay={220} style={{ marginTop: spacing.xl }}>
-          <Text style={styles.label}>SOLVED</Text>
-          <View style={{ gap: spacing.sm }}>
-            {solved.map((s) => (
-              <PlanCard key={s.id} session={s} onPress={() => router.push({ pathname: '/untangle/[id]', params: { id: s.id } })} />
-            ))}
-          </View>
-        </FadeIn>
-      )}
-
       {stories && stories.length > 0 && (
         <FadeIn delay={280} style={{ marginTop: spacing.xl }}>
-          <Text style={styles.label}>YOUR SUCCESS STORIES</Text>
-          <Text style={styles.sectionHint}>Share them in the community if you like.</Text>
+          <Text style={styles.label}>SOLVED</Text>
+          <Text style={styles.sectionHint}>Every solved plan becomes your success story. Share it if you like.</Text>
           <View style={{ gap: spacing.sm }}>
             {stories.map((st) => (
               <Card key={st.id} onPress={() => router.push({ pathname: '/success/[id]', params: { id: st.id } })}>
                 <View style={styles.row}>
-                  <Ionicons name="trophy-outline" size={18} color={fields.mood.deep} />
+                  <Ionicons name="checkmark-circle" size={20} color={fields.mood.deep} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.cardTitle}>{st.title}</Text>
                     <Text style={styles.meta}>
-                      {THEME_LABELS[st.theme] ?? st.theme} · {st.status === 'published' ? 'Shared in the community' : 'Private'}
+                      {st.intensity_before !== null && st.intensity_after !== null
+                        ? `Stress ${st.intensity_before} → ${st.intensity_after} · `
+                        : `${THEME_LABELS[st.theme] ?? st.theme} · `}
+                      {st.status === 'published' ? 'Shared in the community' : 'Private'}
                     </Text>
                   </View>
                   <Ionicons name="chevron-forward" size={16} color={colors.textFaint} />

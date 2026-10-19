@@ -2,7 +2,7 @@
  * One plan from "My plans": the idea behind it (why it fits you), steps to
  * tick off, how you'll notice it works, what your past check-ins show (with
  * the entries behind it), and earlier versions. From here the user keeps
- * talking about it ("Tell me how it's going") or marks it solved, which
+ * talking about it ("Give an update") or marks it solved, which
  * saves a success story they can share in the community.
  */
 import { Ionicons } from '@expo/vector-icons';
@@ -149,7 +149,6 @@ export default function PlanScreen() {
               <Text style={styles.watchText}>{plan.watch_for}</Text>
             </View>
           ) : null}
-          {plan.note ? <Text style={styles.note}>{plan.note}</Text> : null}
         </Card>
       </Animated.View>
 
@@ -220,7 +219,7 @@ export default function PlanScreen() {
           <PressableScale onPress={() => router.push({ pathname: '/untangle/new', params: { sessionId: session.id } })}>
             <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.primary}>
               <Ionicons name="chatbubble-ellipses-outline" size={17} color={colors.ivory} />
-              <Text style={styles.primaryText}>Tell me how it's going</Text>
+              <Text style={styles.primaryText}>Give an update</Text>
             </LinearGradient>
           </PressableScale>
 
@@ -278,7 +277,6 @@ const styles = StyleSheet.create({
   stepMeta: { ...font.small, color: colors.textMuted, marginTop: 2 },
   watch: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg, backgroundColor: colors.sand, borderRadius: radii.md, padding: spacing.md },
   watchText: { ...font.small, color: colors.inkSoft, flex: 1, lineHeight: 18 },
-  note: { ...font.body, color: colors.textMuted, fontStyle: 'italic', marginTop: spacing.md, lineHeight: 20 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm, marginLeft: 32 },
   chip: { backgroundColor: colors.sand, borderRadius: radii.pill, paddingHorizontal: spacing.md, paddingVertical: 5, maxWidth: '100%' },
   chipText: { ...font.small, color: colors.ink },

@@ -104,7 +104,7 @@ export default function Community() {
           </Pressable>
         ))}
       </View>
-      {mode === 'forMe' && <Text style={styles.hint}>Matched to the topics of your check-ins</Text>}
+      {mode === 'forMe' && <Text style={styles.hint}>Picked for what you're dealing with</Text>}
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
         {[null, ...THEMES].map((t) => (

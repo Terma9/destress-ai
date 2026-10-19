@@ -1,17 +1,16 @@
 /**
- * Today: the evening check-in is the hero. Below it, the latest values as
- * color fields with a 7-day line, the AI's note from the week, and a way
- * into Untangle for acute stress.
+ * Today: the evening check-in is the hero. Below it, the Weekly Insights
+ * (headline and the patterns found) and the last days.
  */
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Logo, SoftDots } from '@/components/brand';
-import { AiMark, FadeIn, LivingGradient, PressableScale, PulseDot, Sheen } from '@/components/motion';
+import { FadeIn, PressableScale, PulseDot, Sheen } from '@/components/motion';
 import { Card, Screen } from '@/components/ui';
 import { type Checkin, useCheckins } from '@/data/checkins';
-import { MIN_CHECKINS, useWeeklyInsights } from '@/data/deepDives';
+import { diveStyle, MIN_CHECKINS, useWeeklyInsights } from '@/data/deepDives';
 import { computeStreak, dateKey, getGreeting, todayKey } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
 import { useAppStore } from '@/store/useAppStore';
@@ -142,15 +141,25 @@ export default function Today() {
       <FadeIn delay={200} style={{ marginTop: spacing.xl }}>
         <Card onPress={() => router.push('/deep-dives')} style={styles.insight}>
           <LinearGradient
-            colors={['rgba(255,255,255,0)', fields.sleep.from]}
-            start={{ x: 0.3, y: 0 }}
+            colors={[fields.sleep.from, '#FFFFFF']}
+            start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={[StyleSheet.absoluteFill, { borderRadius: radii.lg }]}
           />
-          <AiMark
-            label={weekly.status === 'ready' && weekly.fresh ? 'YOUR WEEKLY INSIGHTS ARE READY' : 'WEEKLY INSIGHTS'}
-            color={fields.sleep.deep}
-          />
+          <View style={styles.insightHead}>
+            <View style={styles.insightIcon}>
+              <Ionicons name="sparkles" size={18} color={fields.sleep.deep} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.insightTitle}>Weekly Insights</Text>
+              <Text style={styles.insightSub}>What your check-ins show</Text>
+            </View>
+            {weekly.status === 'ready' && weekly.fresh && (
+              <View style={styles.newPill}>
+                <Text style={styles.newPillText}>NEW</Text>
+              </View>
+            )}
+          </View>
           {weekly.status === 'preparing' ? (
             <View style={styles.preparing}>
               <SoftDots color={fields.sleep.deep} />
@@ -165,22 +174,18 @@ export default function Today() {
                   : ' '}
             </Text>
           )}
-          <Text style={styles.insightLink}>{weekly.status === 'ready' ? 'Open your week →' : 'See how it works →'}</Text>
+          {weekly.status === 'ready' && weekly.analysis.deepDives.length > 0 && (
+            <View style={styles.insightList}>
+              {weekly.analysis.deepDives.map((d) => (
+                <View key={d.id} style={styles.insightRow}>
+                  <Ionicons name={diveStyle(d.icon).name as keyof typeof Ionicons.glyphMap} size={15} color={fields.sleep.deep} />
+                  <Text style={styles.insightRowText}>{d.title}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+          <Text style={styles.insightLink}>{weekly.status === 'ready' ? 'See the evidence →' : 'See how it works →'}</Text>
         </Card>
-      </FadeIn>
-
-      <FadeIn delay={330} style={{ marginTop: spacing.lg }}>
-        <PressableScale onPress={() => router.push('/untangle/calm')} accessibilityLabel="Calm now">
-          <LivingGradient colors={['#F3D5C4', '#E8B39A', '#F0C7B1']} style={styles.untangle} speed={7000}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.untangleTitle}>Stressed right now?</Text>
-              <Text style={styles.untangleSub}>Calm now: slow down together in a few minutes</Text>
-            </View>
-            <View style={styles.untangleIcon}>
-              <Ionicons name="compass" size={22} color={fields.stress.ink} />
-            </View>
-          </LivingGradient>
-        </PressableScale>
       </FadeIn>
 
       {recent.length > 0 && (
@@ -290,26 +295,17 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   chip: { borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 4 },
   chipText: { fontFamily: fontFamily.semibold, fontSize: 11 },
-  insight: { overflow: 'hidden' },
-  insightText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.ink, marginTop: spacing.sm },
+  insight: { overflow: 'hidden', borderWidth: 1, borderColor: fields.sleep.to },
+  insightHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  insightIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.8)', alignItems: 'center', justifyContent: 'center' },
+  insightTitle: { fontFamily: fontFamily.bold, fontSize: 19, color: colors.ink },
+  insightSub: { ...font.small, color: colors.textMuted },
+  newPill: { backgroundColor: fields.sleep.deep, borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 3 },
+  newPillText: { fontFamily: fontFamily.bold, fontSize: 10, letterSpacing: 0.6, color: colors.white },
+  insightText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.ink, marginTop: spacing.md },
+  insightList: { marginTop: spacing.md, gap: 8 },
+  insightRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: radii.md, paddingHorizontal: spacing.md, paddingVertical: 9 },
+  insightRowText: { fontFamily: fontFamily.semibold, fontSize: 14, color: colors.ink, flex: 1 },
   insightLink: { fontFamily: fontFamily.semibold, fontSize: 13, color: fields.sleep.ink, marginTop: spacing.md },
   preparing: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  untangle: {
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.6)',
-  },
-  untangleTitle: { fontFamily: fontFamily.bold, fontSize: 16, color: '#5E2C17' },
-  untangleSub: { ...font.small, color: '#7A4A33', marginTop: 2 },
-  untangleIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.55)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
 });
