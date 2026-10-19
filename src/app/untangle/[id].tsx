@@ -20,7 +20,7 @@ import type { EvidenceEntry } from '@/data/deepDives';
 import { fetchSession, markSolved, savePlan, type UntangleSession } from '@/data/untangle';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing } from '@/theme';
 
-const short = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+const short = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 export default function PlanScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

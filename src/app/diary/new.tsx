@@ -115,7 +115,7 @@ export default function CheckinChat() {
   const hasUserMessage = messages.some((m) => m.role === 'user');
   const waitingForFirstWord =
     status === 'loading' || (status === 'replying' && messages[messages.length - 1]?.role !== 'assistant');
-  const weekday = new Date().toLocaleDateString([], { weekday: 'long' });
+  const weekday = new Date().toLocaleDateString('en-GB', { weekday: 'long' });
   const finishBlocked = status !== 'idle' || voiceBusy;
 
   return (

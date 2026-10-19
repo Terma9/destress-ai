@@ -21,7 +21,7 @@ function dayLabel(day: string): string {
   const yesterday = new Date();
   yesterday.setDate(yesterday.getDate() - 1);
   if (day === dateKey(yesterday)) return 'Yesterday';
-  return new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+  return new Date(`${day}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
 /** The entry's three values as small color-field chips. */
@@ -73,7 +73,7 @@ export default function Today() {
           <View style={styles.brandRow}>
             <Logo size={26} />
             <Text style={styles.date}>
-              {new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
+              {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </Text>
           </View>
           {remindersSupported && (

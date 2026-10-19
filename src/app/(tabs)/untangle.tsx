@@ -15,7 +15,7 @@ import { THEME_LABELS, useMyStories } from '@/data/community';
 import { type UntangleSession, useUntangleSessions } from '@/data/untangle';
 import { colors, fields, font, fontFamily, radii, shadow, spacing } from '@/theme';
 
-const short = (iso: string) => new Date(iso).toLocaleDateString([], { day: 'numeric', month: 'short' });
+const short = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
 export default function UntangleHome() {
   const router = useRouter();

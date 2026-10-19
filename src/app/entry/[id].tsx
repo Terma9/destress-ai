@@ -49,8 +49,8 @@ export default function EntryDetail() {
   }
 
   const created = new Date(entry.created_at);
-  const when = created.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
-  const time = created.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const when = created.toLocaleDateString('en-GB', { weekday: 'long', month: 'long', day: 'numeric' });
+  const time = created.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
   const scores = [
     { label: 'Stress', value: entry.stress },
     { label: 'Emotion', value: entry.emotion },

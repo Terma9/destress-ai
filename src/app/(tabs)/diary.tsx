@@ -16,7 +16,7 @@ import { colors, font, gradients, radii, spacing } from '@/theme';
 function timeAgo(ts: number) {
   const startOfDay = (t: number) => new Date(t).setHours(0, 0, 0, 0);
   const days = Math.round((startOfDay(Date.now()) - startOfDay(ts)) / 86_400_000);
-  if (days <= 0) return `Today, ${new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+  if (days <= 0) return `Today, ${new Date(ts).toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })}`;
   if (days === 1) return 'Yesterday';
   return `${days} days ago`;
 }

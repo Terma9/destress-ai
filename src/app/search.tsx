@@ -98,7 +98,7 @@ export default function Search() {
           <Animated.View key={r.id} entering={FadeInDown.duration(380).delay(i * 70)} style={{ marginTop: spacing.md }}>
             <Card onPress={() => router.push({ pathname: '/entry/[id]', params: { id: r.id } })}>
               <Text style={styles.day}>
-                {new Date(r.created_at).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })}
+                {new Date(r.created_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
                 {r.similarity >= 0.5 ? ' · Strong match' : ''}
               </Text>
               <Text style={styles.resultTitle}>{r.title ?? 'Check-in'}</Text>

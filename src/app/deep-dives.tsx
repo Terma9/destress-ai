@@ -186,7 +186,7 @@ function SmallButton({ label, onPress }: { label: string; onPress: () => void })
 function weekRange(createdAt: string): string {
   const end = new Date(createdAt);
   const start = new Date(end.getTime() - 6 * 86_400_000);
-  const f = (d: Date) => d.toLocaleDateString([], { day: 'numeric', month: 'short' });
+  const f = (d: Date) => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   return `${f(start)} – ${f(end)}`;
 }
 

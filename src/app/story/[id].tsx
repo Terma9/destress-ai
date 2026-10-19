@@ -147,7 +147,7 @@ export default function StoryArticle() {
                   </View>
                   <Text style={styles.commentMeta}>
                     {c.is_mine ? 'You' : (c.author_name ?? 'Anonymous')}
-                    {c.is_example ? ' · example comment' : ''} · {new Date(c.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' })}
+                    {c.is_example ? ' · example comment' : ''} · {new Date(c.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </Text>
                   <View style={{ flex: 1 }} />
                   {c.is_mine && (

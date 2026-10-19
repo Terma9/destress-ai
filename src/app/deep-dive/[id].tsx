@@ -115,7 +115,7 @@ export default function DeepDiveDetail() {
                     onPress={() => router.push({ pathname: '/entry/[id]', params: { id: e.id } })}>
                     <Text style={styles.chipText} numberOfLines={1}>
                       {moodEmoji(e.mood)}{' '}
-                      {new Date(e.created_at).toLocaleDateString([], { day: 'numeric', month: 'short' })} ·{' '}
+                      {new Date(e.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} ·{' '}
                       {e.title ?? 'Check-in'}
                     </Text>
                   </Pressable>

@@ -42,7 +42,7 @@ export default function Calendar() {
 
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate();
   const leading = (new Date(view.year, view.month, 1).getDay() + 6) % 7; // Monday first
-  const monthName = new Date(view.year, view.month, 1).toLocaleDateString([], { month: 'long', year: 'numeric' });
+  const monthName = new Date(view.year, view.month, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
   function shift(delta: number) {
     const d = new Date(view.year, view.month + delta, 1);
@@ -175,7 +175,7 @@ export default function Calendar() {
         <FadeIn key={selected} style={{ marginTop: spacing.lg }}>
           <Card>
             <Text style={styles.dayLabel}>
-              {selectedDate.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
+              {selectedDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </Text>
             {checkin ? (
               <Text style={styles.dayTitle}>{checkin.title ?? 'Check-in'}</Text>
