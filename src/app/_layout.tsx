@@ -1,19 +1,38 @@
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  DMSans_600SemiBold,
+  DMSans_700Bold,
+  useFonts,
+} from '@expo-google-fonts/dm-sans';
 import { Stack } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import type { ReactNode } from 'react';
+import { type ReactNode, useEffect } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { PrimaryButton } from '@/components/ui';
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { colors, font, spacing } from '@/theme';
 
+// Keep the splash screen up until the typeface has loaded, so text never jumps.
+SplashScreen.preventAutoHideAsync();
+
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({ DMSans_400Regular, DMSans_500Medium, DMSans_600SemiBold, DMSans_700Bold });
+
+  useEffect(() => {
+    if (fontsLoaded || fontError) SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
+
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
       <AuthProvider>
         <AuthGate>
-          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#EAF2FF' } }}>
+          <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.ivory } }}>
             <Stack.Screen name="index" />
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="diary/new" options={{ presentation: 'modal' }} />
@@ -62,7 +81,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.xl,
-    backgroundColor: '#EAF2FF',
+    backgroundColor: colors.ivory,
   },
   title: { ...font.h2, color: colors.text, marginBottom: spacing.sm },
   body: { ...font.body, color: colors.textMuted, textAlign: 'center' },

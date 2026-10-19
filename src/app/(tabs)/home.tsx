@@ -1,208 +1,238 @@
+/**
+ * Today: the evening check-in is the hero. Below it, the latest values as
+ * color fields with a 7-day line, the AI's note from the week, and a way
+ * into Untangle for acute stress.
+ */
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Card, GradientCard, Screen } from '@/components/ui';
+import { Logo } from '@/components/brand';
+import { FieldTile } from '@/components/fields';
+import { AiMark, FadeIn, LivingGradient, PressableScale, PulseDot, Sheen } from '@/components/motion';
+import { Card, Screen } from '@/components/ui';
 import { useCheckins } from '@/data/checkins';
-import { moods } from '@/data/content';
 import { useLatestInsight } from '@/data/deepDives';
-import { computeStreak, getGreeting } from '@/lib/dates';
+import { lastSevenDays, useDailyMetrics } from '@/data/metrics';
+import { computeStreak, dateKey, getGreeting, todayKey } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
-import { selectTodayMood, useAppStore } from '@/store/useAppStore';
-import { colors, font, gradients, radii, shadow, spacing } from '@/theme';
+import { useAppStore } from '@/store/useAppStore';
+import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing } from '@/theme';
 
-const tiles = [
-  { key: 'deep', title: 'AI Deep Dives', sub: 'Personalized insights', icon: 'analytics-outline', bg: '#EDE9FE', tint: '#7C3AED', href: '/deep-dives' },
-  { key: 'prog', title: 'Progress', sub: 'Track wellness', icon: 'trending-up-outline', bg: '#FCE7F3', tint: '#EC4899', href: '/(tabs)/tracker' },
-] as const;
-
-export default function Home() {
+export default function Today() {
   const router = useRouter();
-  const { setTodayMood, name, activityDates, reminderEnabled, setReminderEnabled } = useAppStore();
+  const { name, activityDates, reminderEnabled, setReminderEnabled } = useAppStore();
   const { checkins } = useCheckins();
-  const todayMood = useAppStore(selectTodayMood);
+  const { rows } = useDailyMetrics();
   const insight = useLatestInsight();
   const streak = computeStreak(activityDates);
   const greeting = getGreeting();
+
+  const today = todayKey();
+  const todaysEntry = checkins?.find((c) => dateKey(new Date(c.created_at)) === today) ?? null;
+
+  // Show today's values once there are any, otherwise yesterday's.
+  const days = lastSevenDays();
+  const byDay = new Map((rows ?? []).map((r) => [r.day, r]));
+  const todayRow = byDay.get(today);
+  const showDay = todayRow && (todayRow.stress ?? todayRow.sleep ?? todayRow.emotion) !== null ? today : days[5];
+  const shown = byDay.get(showDay);
+  const history = (key: 'stress' | 'sleep' | 'emotion') => days.map((d) => byDay.get(d)?.[key] ?? null);
 
   const toggleReminder = async () => {
     if (reminderEnabled) {
       await disableDailyReminder();
       setReminderEnabled(false);
     } else {
-      const ok = await enableDailyReminder();
-      setReminderEnabled(ok);
+      setReminderEnabled(await enableDailyReminder());
     }
   };
 
   return (
     <Screen>
-      <View style={styles.greetRow}>
-        <Ionicons name={greeting === 'Good Evening' ? 'moon' : 'sunny'} size={20} color={colors.star} />
-        <Text style={[styles.greet, { flex: 1 }]}>
-          {greeting}
-          {name ? `, ${name}` : ''}
+      <FadeIn>
+        <View style={styles.headRow}>
+          <View style={styles.brandRow}>
+            <Logo size={26} />
+            <Text style={styles.date}>
+              {new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
+            </Text>
+          </View>
+          {remindersSupported && (
+            <Pressable onPress={toggleReminder} hitSlop={8} style={styles.bell} accessibilityLabel="Evening reminder">
+              <Ionicons
+                name={reminderEnabled ? 'notifications' : 'notifications-outline'}
+                size={18}
+                color={reminderEnabled ? fields.stress.ink : colors.textMuted}
+              />
+            </Pressable>
+          )}
+        </View>
+        <Text style={styles.greeting}>
+          {greeting.charAt(0) + greeting.slice(1).toLowerCase()}
+          {name ? `,\n${name}` : ''}
         </Text>
-        {remindersSupported && (
-          <Pressable onPress={toggleReminder} hitSlop={8} style={styles.bell}>
-            <Ionicons
-              name={reminderEnabled ? 'notifications' : 'notifications-outline'}
-              size={20}
-              color={reminderEnabled ? colors.primary : colors.textFaint}
-            />
-          </Pressable>
+        {streak >= 2 && (
+          <View style={styles.streak}>
+            <Ionicons name="flame" size={13} color={fields.stress.ink} />
+            <Text style={styles.streakText}>{streak} days in a row</Text>
+          </View>
         )}
-      </View>
-      <Text style={styles.sub}>How are you feeling today?</Text>
+      </FadeIn>
 
-      {/* Daily check-in */}
-      <Card style={{ marginTop: spacing.lg }}>
-        <Text style={styles.cardLabel}>Daily Check-In</Text>
-        <View style={styles.moodRow}>
-          {moods.map((m) => {
-            const active = todayMood === m.key;
-            return (
-              <Pressable
-                key={m.key}
-                onPress={() => setTodayMood(m.key)}
-                style={[styles.mood, active && styles.moodActive]}>
-                <Text style={{ fontSize: 26 }}>{m.emoji}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </Card>
-
-      {/* Untangle: help for acute stress */}
-      <Card style={{ marginTop: spacing.lg }} onPress={() => router.push('/untangle/new')}>
-        <View style={styles.untangleRow}>
-          <View style={styles.untangleIcon}>
-            <Ionicons name="compass-outline" size={22} color={colors.white} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.untangleTitle}>Stressed right now?</Text>
-            <Text style={styles.untangleSub}>Untangle it with a small plan</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
-        </View>
-      </Card>
-
-      {/* Today's insight */}
-      <GradientCard colors={gradients.insight} style={{ marginTop: spacing.lg }}>
-        <View style={styles.insightHead}>
-          <Ionicons name="sparkles" size={16} color={colors.white} />
-          <Text style={styles.insightTitle}>Today's Insight</Text>
-        </View>
-        <Text style={styles.insightBody}>
-          {insight ?? "I'm learning about your stress patterns. Check in regularly to unlock personalized insights!"}
-        </Text>
-        <Pressable onPress={() => router.push('/deep-dives')} style={styles.insightBtn}>
-          <Text style={styles.insightBtnText}>Explore More</Text>
-        </Pressable>
-      </GradientCard>
-
-      {/* Feature grid */}
-      <View style={styles.grid}>
-        {tiles.map((t) => (
-          <Card key={t.key} style={styles.tile} onPress={() => router.push(t.href as any)}>
-            <View style={[styles.tileIcon, { backgroundColor: t.bg }]}>
-              <Ionicons name={t.icon as any} size={20} color={t.tint} />
+      <FadeIn delay={90} style={{ marginTop: spacing.lg }}>
+        {todaysEntry ? (
+          <Card onPress={() => router.push({ pathname: '/entry/[id]', params: { id: todaysEntry.id } })}>
+            <View style={styles.doneRow}>
+              <View style={styles.doneIcon}>
+                <Ionicons name="checkmark" size={16} color={colors.white} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.doneLabel}>Today's entry is written</Text>
+                <Text style={styles.doneTitle}>{todaysEntry.title ?? 'Check-in'}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
             </View>
-            <Text style={styles.tileTitle}>{t.title}</Text>
-            <Text style={styles.tileSub}>{t.sub}</Text>
           </Card>
-        ))}
-      </View>
+        ) : (
+          <PressableScale onPress={() => router.push('/diary/new')} accessibilityLabel="Start tonight's check-in">
+            <LinearGradient colors={gradients.primary} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.cta}>
+              <Sheen />
+              <View>
+                <View style={styles.ctaRow}>
+                  <PulseDot />
+                  <Text style={styles.ctaTitle}>Tonight's check-in</Text>
+                </View>
+                <Text style={styles.ctaSub}>2 minutes · write or speak</Text>
+              </View>
+              <View style={styles.ctaArrow}>
+                <Ionicons name="arrow-forward" size={20} color={colors.ink} />
+              </View>
+            </LinearGradient>
+          </PressableScale>
+        )}
+      </FadeIn>
 
-      {/* Streak strip */}
-      <View style={styles.streak}>
-        <View>
-          <Text style={styles.streakLabel}>Your Streak</Text>
-          <Text style={styles.streakValue}>
-            {streak} {streak === 1 ? 'Day' : 'Days'} 🔥
+      <FadeIn delay={170} style={{ marginTop: spacing.xl }}>
+        <Text style={styles.label}>{showDay === today ? 'TODAY' : 'YESTERDAY'}</Text>
+        <View style={styles.tiles}>
+          <FieldTile kind="stress" value={shown?.stress ?? null} history={history('stress')} />
+          <FieldTile kind="sleep" value={shown?.sleep ?? null} history={history('sleep')} delay={300} />
+          <FieldTile kind="mood" value={shown?.emotion ?? null} history={history('emotion')} delay={600} />
+        </View>
+      </FadeIn>
+
+      <FadeIn delay={250} style={{ marginTop: spacing.lg }}>
+        <Card onPress={() => router.push('/deep-dives')} style={styles.insight}>
+          <LinearGradient
+            colors={['rgba(255,255,255,0)', fields.sleep.from]}
+            start={{ x: 0.3, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: radii.lg }]}
+          />
+          <AiMark label="YOUR WEEK" color={fields.sleep.deep} />
+          <Text style={styles.insightText}>
+            {insight ?? 'After a few check-ins, I can show you what keeps coming up, with the entries behind it.'}
           </Text>
-        </View>
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={styles.streakLabel}>Total Entries</Text>
-          <Text style={styles.streakValue}>{checkins?.length ?? '–'}</Text>
-        </View>
-      </View>
+          <Text style={styles.insightLink}>{insight ? 'Open your weekly look →' : 'See how it works →'}</Text>
+        </Card>
+      </FadeIn>
+
+      <FadeIn delay={330} style={{ marginTop: spacing.lg }}>
+        <PressableScale onPress={() => router.push('/untangle/new')} accessibilityLabel="Untangle something stressful">
+          <LivingGradient colors={['#F3D5C4', '#E8B39A', '#F0C7B1']} style={styles.untangle} speed={7000}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.untangleTitle}>Stressed right now?</Text>
+              <Text style={styles.untangleSub}>Untangle it with a small plan</Text>
+            </View>
+            <View style={styles.untangleIcon}>
+              <Ionicons name="compass" size={22} color={fields.stress.ink} />
+            </View>
+          </LivingGradient>
+        </PressableScale>
+      </FadeIn>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  greetRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  greet: { ...font.h2, color: colors.text },
+  headRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  date: { ...font.small, color: colors.textMuted },
   bell: {
-    width: 38,
-    height: 38,
-    borderRadius: radii.pill,
-    backgroundColor: colors.white,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
     ...shadow.soft,
   },
-  sub: { ...font.body, color: colors.textMuted, marginTop: 4 },
-  cardLabel: { ...font.title, color: colors.text, marginBottom: spacing.md },
-  moodRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  mood: {
-    width: 50,
-    height: 50,
+  greeting: { ...font.display, color: colors.ink, marginTop: 6 },
+  streak: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+    backgroundColor: fields.stress.from,
     borderRadius: radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  streakText: { fontFamily: fontFamily.semibold, fontSize: 12, color: fields.stress.ink },
+  cta: {
+    borderRadius: radii.lg,
+    padding: spacing.lg + 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    overflow: 'hidden',
+    ...shadow.lifted,
+  },
+  ctaRow: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  ctaTitle: { fontFamily: fontFamily.semibold, fontSize: 17, color: colors.ivory },
+  ctaSub: { ...font.small, color: 'rgba(251,250,247,0.65)', marginTop: 4, marginLeft: 17 },
+  ctaArrow: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.ivory,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.cardAlt,
   },
-  moodActive: { backgroundColor: '#DBEAFE', borderWidth: 2, borderColor: colors.primary },
-  untangleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  doneRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  doneIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: fields.mood.deep,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  doneLabel: { ...font.small, color: colors.textMuted },
+  doneTitle: { ...font.title, color: colors.ink },
+  label: { ...font.label, color: colors.textMuted, marginBottom: spacing.sm },
+  tiles: { flexDirection: 'row', gap: 9 },
+  insight: { overflow: 'hidden' },
+  insightText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.ink, marginTop: spacing.sm },
+  insightLink: { fontFamily: fontFamily.semibold, fontSize: 13, color: fields.sleep.ink, marginTop: spacing.md },
+  untangle: {
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.6)',
+  },
+  untangleTitle: { fontFamily: fontFamily.bold, fontSize: 16, color: '#5E2C17' },
+  untangleSub: { ...font.small, color: '#7A4A33', marginTop: 2 },
   untangleIcon: {
     width: 44,
     height: 44,
-    borderRadius: radii.md,
-    backgroundColor: colors.purple,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.55)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  untangleTitle: { ...font.title, color: colors.text },
-  untangleSub: { ...font.small, color: colors.textMuted, marginTop: 2 },
-  insightHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  insightTitle: { ...font.title, color: colors.white },
-  insightBody: { ...font.body, color: 'rgba(255,255,255,0.92)', lineHeight: 20 },
-  insightBtn: {
-    alignSelf: 'flex-start',
-    marginTop: spacing.md,
-    backgroundColor: 'rgba(255,255,255,0.22)',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.pill,
-  },
-  insightBtnText: { color: colors.white, fontWeight: '600', fontSize: 13 },
-  grid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-  },
-  tile: { width: '47.5%', gap: 6, paddingVertical: spacing.lg },
-  tileIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.pill,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  tileTitle: { ...font.title, color: colors.text },
-  tileSub: { ...font.small, color: colors.textMuted },
-  streak: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: '#FEF3C7',
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginTop: spacing.lg,
-    ...shadow.soft,
-  },
-  streakLabel: { ...font.small, color: '#92400E' },
-  streakValue: { ...font.title, color: '#78350F', marginTop: 2 },
 });

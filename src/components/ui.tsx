@@ -16,26 +16,40 @@ import {
   TextStyle,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, font, gradients, radii, shadow, spacing } from '@/theme';
+import { PressableScale } from '@/components/motion';
+import { colors, font, fontFamily, gradients, radii, shadow, spacing, type Tint, tints } from '@/theme';
 
-/** Full-screen scrollable container with the app's blue→mint gradient background. */
+/** Room at the bottom so content can scroll clear of the floating tab bar. */
+export const TAB_BAR_SPACE = 112;
+
+/**
+ * Full-screen scrollable container: warm ivory with a soft color tint at the
+ * top (clay by default; indigo for insights, sage for the community).
+ */
 export function Screen({
   children,
   scroll = true,
   contentStyle,
+  tint = 'clay',
 }: {
   children: ReactNode;
   scroll?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
+  tint?: Tint;
 }) {
   const insets = useSafeAreaInsets();
   const pad = {
     paddingTop: insets.top + spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingBottom: TAB_BAR_SPACE,
     paddingHorizontal: spacing.xl,
   };
   return (
-    <LinearGradient colors={gradients.appBackground} style={StyleSheet.absoluteFill as ViewStyle}>
+    <LinearGradient
+      colors={[tints[tint], colors.ivory, colors.ivory]}
+      locations={[0, 0.38, 1]}
+      start={{ x: 0.9, y: 0 }}
+      end={{ x: 0.3, y: 1 }}
+      style={StyleSheet.absoluteFill as ViewStyle}>
       {scroll ? (
         <ScrollView
           style={{ flex: 1 }}
@@ -71,11 +85,9 @@ export function Card({
 }) {
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [styles.card, style, pressed ? { opacity: 0.85 } : null]}>
+      <PressableScale onPress={onPress} style={[styles.card, style]}>
         {children}
-      </Pressable>
+      </PressableScale>
     );
   }
   return <View style={[styles.card, style]}>{children}</View>;
@@ -102,11 +114,7 @@ export function GradientCard({
     </LinearGradient>
   );
   if (onPress) {
-    return (
-      <Pressable onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.9 } : null)}>
-        {inner}
-      </Pressable>
-    );
+    return <PressableScale onPress={onPress}>{inner}</PressableScale>;
   }
   return inner;
 }
@@ -143,16 +151,16 @@ export function PrimaryButton({
   style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => (pressed ? { opacity: 0.9 } : null)}>
+    <PressableScale onPress={onPress}>
       <LinearGradient
         colors={gradients.primary}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={[styles.primaryBtn, style]}>
         {icon}
         <Text style={styles.primaryBtnText}>{label}</Text>
       </LinearGradient>
-    </Pressable>
+    </PressableScale>
   );
 }
 
@@ -189,7 +197,7 @@ export function StatCard({
 export function ProgressBar({
   progress,
   color = colors.primary,
-  track = '#E2E8F0',
+  track = '#EFEBE4',
   height = 6,
 }: {
   progress: number; // 0..1
@@ -245,21 +253,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: radii.lg,
     padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: '#F3F0EA',
     ...shadow.card,
   },
   gradientCard: {
     borderRadius: radii.lg,
     padding: spacing.lg,
-    ...shadow.card,
+    overflow: 'hidden',
+    ...shadow.lifted,
   },
   chip: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.sm,
     borderRadius: radii.pill,
   },
-  chipActive: { backgroundColor: colors.primary },
+  chipActive: { backgroundColor: colors.ink },
   chipIdle: { backgroundColor: colors.white, borderWidth: 1, borderColor: colors.border },
-  chipText: { ...font.small, fontWeight: '600' },
+  chipText: { fontFamily: fontFamily.semibold, fontSize: 12 },
   primaryBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -269,7 +280,7 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     paddingHorizontal: spacing.xl,
   },
-  primaryBtnText: { color: colors.white, fontSize: 16, fontWeight: '600' },
+  primaryBtnText: { color: colors.white, fontSize: 16, fontFamily: fontFamily.semibold },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -279,7 +290,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { ...font.h3, color: colors.text },
   statCard: { flex: 1, gap: 4, paddingVertical: spacing.md },
-  statValue: { fontSize: 20, fontWeight: '700', color: colors.text },
+  statValue: { fontSize: 20, fontFamily: fontFamily.bold, color: colors.text },
   statLabel: { ...font.small, color: colors.textMuted },
   emptyState: { alignItems: 'center', paddingVertical: spacing.xxl, gap: spacing.sm },
   emptyTitle: { ...font.title, color: colors.text, textAlign: 'center' },

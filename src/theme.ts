@@ -1,47 +1,81 @@
 /**
- * Destress AI design tokens.
- * Colors, gradients, spacing, radii and typography derived from the report mockups
- * (soft blue/mint backgrounds, blue + purple accents, gradient metric cards).
+ * Destress AI design tokens: "soft color fields".
+ *
+ * Three muted color fields carry meaning across the app: stress = clay,
+ * sleep = indigo, mood = sage. Warm ivory background, deep ink for primary
+ * actions, DM Sans. Older keys (primary, purple, gradients.insight, …) are
+ * kept and point at the new palette, so every screen picks up the new look.
+ * The previous design is saved as the git tag `design-v1`.
  */
 
+/** Color fields for the three tracked values. `from`/`to` are the soft gradient. */
+export const fields = {
+  stress: { from: '#F6E6DC', to: '#EBC7B2', ink: '#7A3E25', strong: '#D99272', deep: '#A9532F' },
+  sleep: { from: '#E4E8F7', to: '#C8D0EE', ink: '#2E3A66', strong: '#7F8CC4', deep: '#4A578F' },
+  mood: { from: '#E4EEDF', to: '#C5DABD', ink: '#2F4F2E', strong: '#86A97C', deep: '#557A4C' },
+} as const;
+
+export type FieldKey = keyof typeof fields;
+
 export const colors = {
-  // Brand
-  primary: '#2563EB', // blue
-  primaryDark: '#1D4ED8',
-  purple: '#7C3AED',
-  purpleLight: '#A855F7',
-  green: '#10B981',
+  // Core
+  ivory: '#FBFAF7',
+  ink: '#1C1B19',
+  inkSoft: '#4A4740',
+  sand: '#F2EEE7',
+  clay: '#C9663F',
+
+  // Legacy names, mapped onto the new palette
+  primary: '#1C1B19',
+  primaryDark: '#000000',
+  purple: '#C9663F', // the accent is now clay
+  purpleLight: '#D99272',
+  green: '#6F9764',
 
   // Surfaces
-  bg: '#F5F8FC', // app background base (gradient sits on top)
+  bg: '#FBFAF7',
   card: '#FFFFFF',
-  cardAlt: '#F8FAFC',
+  cardAlt: '#F6F4EF',
 
   // Text
-  text: '#0F172A',
-  textMuted: '#64748B',
-  textFaint: '#94A3B8',
+  text: '#1C1B19',
+  textMuted: '#77736B',
+  textFaint: '#A8A39A',
 
   // Lines / misc
-  border: '#E7EDF5',
+  border: '#ECE8E1',
   white: '#FFFFFF',
-  star: '#F59E0B',
-  danger: '#EF4444',
+  star: '#E8A55B',
+  danger: '#C2412D',
 } as const;
 
 /** Linear-gradient color stops (2-stop) used across the app. */
 export const gradients = {
-  appBackground: ['#EAF2FF', '#EAF7F1'] as [string, string], // blue → mint
-  primary: ['#3B82F6', '#2563EB'] as [string, string],
-  insight: ['#3B82F6', '#4F46E5'] as [string, string], // Home "Today's Insight"
-  aiAnalysis: ['#8B5CF6', '#6366F1'] as [string, string], // Diary AI card
-  stress: ['#F97316', '#EC4899'] as [string, string], // orange → pink
-  emotion: ['#06B6D4', '#3B82F6'] as [string, string], // cyan → blue
-  sleep: ['#8B5CF6', '#6366F1'] as [string, string], // purple → indigo
-  community: ['#8B5CF6', '#D946EF'] as [string, string], // purple → magenta
-  featured: ['#7C3AED', '#9333EA'] as [string, string],
-  quickRelief: ['#8B5CF6', '#6366F1'] as [string, string],
+  appBackground: ['#FBFAF7', '#FBFAF7'] as [string, string],
+  /** Primary actions: deep ink with a hint of warmth. */
+  primary: ['#2B2925', '#151412'] as [string, string],
+  /** Mic, Untangle accents. */
+  clay: ['#E59A78', '#C9663F'] as [string, string],
+  untangle: ['#F3D5C4', '#E8B39A'] as [string, string],
+  // Strong gradients that carry white text (legacy cards)
+  insight: ['#6B77B5', '#3F4A85'] as [string, string],
+  aiAnalysis: ['#6B77B5', '#3F4A85'] as [string, string],
+  stress: ['#D99272', '#A9532F'] as [string, string],
+  emotion: ['#86A97C', '#557A4C'] as [string, string],
+  sleep: ['#7F8CC4', '#4A578F'] as [string, string],
+  community: ['#86A97C', '#557A4C'] as [string, string],
+  featured: ['#D99272', '#A9532F'] as [string, string],
+  quickRelief: ['#7F8CC4', '#4A578F'] as [string, string],
 } as const;
+
+/** Soft background tints at the top of a screen, one per area. */
+export const tints = {
+  clay: '#FBEDE3',
+  indigo: '#E9ECFA',
+  sage: '#E8F1E3',
+} as const;
+
+export type Tint = keyof typeof tints;
 
 export const spacing = {
   xs: 4,
@@ -53,36 +87,37 @@ export const spacing = {
 } as const;
 
 export const radii = {
-  sm: 10,
-  md: 14,
-  lg: 20,
+  sm: 12,
+  md: 16,
+  lg: 22,
   xl: 28,
   pill: 999,
 } as const;
 
+/** Layered shadows: a tight contact shadow plus a wide soft one. */
 export const shadow = {
-  card: {
-    shadowColor: '#1E293B',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 2,
-  },
-  soft: {
-    shadowColor: '#1E293B',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
+  card: { boxShadow: '0px 1px 2px rgba(28, 27, 25, 0.04), 0px 10px 28px rgba(28, 27, 25, 0.07)' },
+  soft: { boxShadow: '0px 1px 2px rgba(28, 27, 25, 0.04), 0px 4px 14px rgba(28, 27, 25, 0.05)' },
+  lifted: { boxShadow: '0px 2px 4px rgba(28, 27, 25, 0.06), 0px 18px 40px rgba(28, 27, 25, 0.16)' },
+} as const;
+
+/** DM Sans, loaded in the root layout. Use the family for the weight (no fontWeight with custom fonts). */
+export const fontFamily = {
+  regular: 'DMSans_400Regular',
+  medium: 'DMSans_500Medium',
+  semibold: 'DMSans_600SemiBold',
+  bold: 'DMSans_700Bold',
 } as const;
 
 export const font = {
-  h1: { fontSize: 26, fontWeight: '700' as const },
-  h2: { fontSize: 22, fontWeight: '700' as const },
-  h3: { fontSize: 18, fontWeight: '600' as const },
-  title: { fontSize: 16, fontWeight: '600' as const },
-  body: { fontSize: 14, fontWeight: '400' as const },
-  small: { fontSize: 12, fontWeight: '400' as const },
-  tiny: { fontSize: 11, fontWeight: '400' as const },
+  display: { fontFamily: fontFamily.bold, fontSize: 30, letterSpacing: -0.8, lineHeight: 33 },
+  h1: { fontFamily: fontFamily.bold, fontSize: 27, letterSpacing: -0.6 },
+  h2: { fontFamily: fontFamily.bold, fontSize: 22, letterSpacing: -0.4 },
+  h3: { fontFamily: fontFamily.bold, fontSize: 19, letterSpacing: -0.3 },
+  title: { fontFamily: fontFamily.semibold, fontSize: 16, letterSpacing: -0.1 },
+  body: { fontFamily: fontFamily.regular, fontSize: 14 },
+  bodyMedium: { fontFamily: fontFamily.medium, fontSize: 14 },
+  small: { fontFamily: fontFamily.regular, fontSize: 12 },
+  label: { fontFamily: fontFamily.semibold, fontSize: 11, letterSpacing: 0.4 },
+  tiny: { fontFamily: fontFamily.regular, fontSize: 11 },
 } as const;
