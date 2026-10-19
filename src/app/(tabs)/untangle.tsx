@@ -35,14 +35,14 @@ export default function UntangleHome() {
 
       <FadeIn style={styles.tiles}>
         <ModeTile
-          title="Calm Now"
+          title={'Calm\nNow'}
           line="Calm down in a few minutes"
           field={fields.stress}
           visual={<BreathingOrb color={fields.stress.deep} />}
           onPress={() => router.push('/untangle/calm')}
         />
         <ModeTile
-          title="Stress Solving"
+          title={'Stress\nSolving'}
           line="Solve what keeps coming back"
           field={fields.mood}
           visual={<UntangledLine color={fields.mood.deep} />}
@@ -105,7 +105,7 @@ type Field = { from: string; to: string; ink: string; deep: string };
 /** One of the two ways in: a big tile with a small animation that shows what it does. */
 function ModeTile({ title, line, field, visual, onPress }: { title: string; line: string; field: Field; visual: ReactNode; onPress: () => void }) {
   return (
-    <PressableScale onPress={onPress} accessibilityLabel={title} style={{ flex: 1 }}>
+    <PressableScale onPress={onPress} accessibilityLabel={title.replace('\n', ' ')} style={{ flex: 1 }}>
       <LivingGradient colors={[field.from, field.to, field.from]} style={styles.tile} speed={10000}>
         <View style={styles.visual}>{visual}</View>
         <View>
@@ -209,6 +209,7 @@ const styles = StyleSheet.create({
   sub: { ...font.body, color: colors.textMuted, marginTop: 2 },
   tiles: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg },
   tile: {
+    flex: 1,
     minHeight: 210,
     borderRadius: radii.lg,
     padding: spacing.md,
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
     ...shadow.card,
   },
   visual: { height: 64, justifyContent: 'center' },
-  tileTitle: { fontFamily: fontFamily.bold, fontSize: 19, letterSpacing: -0.3, marginTop: spacing.md },
+  tileTitle: { fontFamily: fontFamily.bold, fontSize: 20, lineHeight: 23, letterSpacing: -0.3, marginTop: spacing.md },
   tileLine: { fontFamily: fontFamily.medium, fontSize: 13, lineHeight: 17, marginTop: 4, opacity: 0.8 },
   tileArrow: {
     alignSelf: 'flex-end',
