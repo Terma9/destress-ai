@@ -83,27 +83,6 @@ const formatDuration = (ms: number) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-/** A soft ring that keeps rippling out from the mic button. */
-function MicRings() {
-  const reduced = useReducedMotion();
-  return (
-    <>
-      {[0, 1].map((i) => (
-        <Ring key={i} delay={i * 1300} reduced={reduced} />
-      ))}
-    </>
-  );
-}
-
-function Ring({ delay, reduced }: { delay: number; reduced: boolean }) {
-  const t = useSharedValue(0);
-  useEffect(() => {
-    if (!reduced) t.value = withDelay(delay, withRepeat(withTiming(1, { duration: 2600, easing: Easing.out(Easing.quad) }), -1));
-  }, [reduced]);
-  const style = useAnimatedStyle(() => ({ opacity: 0.45 * (1 - t.value), transform: [{ scale: 1 + t.value * 0.7 }] }));
-  return <Animated.View style={[StyleSheet.absoluteFill, styles.ring, { pointerEvents: "none" }, style]} />;
-}
-
 /** A small moving wave while recording, so it feels alive and listening. */
 function Wave() {
   return (
@@ -259,12 +238,9 @@ export function VoiceComposer({
         </PressableScale>
       ) : (
         <PressableScale onPress={startRecording} disabled={disabled} accessibilityLabel="Speak your message" style={disabled && styles.disabled}>
-          <View>
-            {!disabled && <MicRings />}
-            <LinearGradient colors={gradients.clay} style={styles.roundBtn}>
-              <Ionicons name="mic" size={21} color={colors.white} />
-            </LinearGradient>
-          </View>
+          <LinearGradient colors={gradients.clay} style={styles.roundBtn}>
+            <Ionicons name="mic" size={21} color={colors.white} />
+          </LinearGradient>
         </PressableScale>
       )}
     </View>
@@ -328,7 +304,6 @@ const styles = StyleSheet.create({
     color: colors.ink,
   },
   roundBtn: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
-  ring: { borderRadius: 23, borderWidth: 2, borderColor: fields.stress.strong },
   disabled: { opacity: 0.45 },
   recording: { alignItems: 'center', backgroundColor: fields.stress.from, borderColor: fields.stress.to, paddingLeft: 6 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },

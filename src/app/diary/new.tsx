@@ -1,6 +1,11 @@
 /**
- * AI check-in: a short streamed conversation, then "Finish" turns it into a
- * saved diary entry (summary, mood, scores) via the checkin-complete function.
+ * The evening check-in: a warm streamed conversation instead of manual
+ * tracking. "Finish" turns it into the day's entry (checkin-complete), then
+ * the review step shows the AI's suggested stress, sleep and mood with
+ * reasons, and the user confirms or adjusts them for the calendar.
+ *
+ * One entry per day: opening the check-in again the same day loads today's
+ * conversation and continues it; finishing again updates the same entry.
  * Messages can be typed or spoken; spoken ones are transcribed and sent automatically.
  */
 import { Ionicons } from '@expo/vector-icons';
@@ -13,13 +18,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { type ChatMessage, type CheckinResult, completeCheckin, streamCheckinReply } from '@/ai/checkinClient';
 import { SoftDots } from '@/components/brand';
 import { CompanionAvatar, CrisisCard, MessageBubble, TypingBubble, VoiceComposer } from '@/components/chat';
-import { moodWord } from '@/components/fields';
+import { DayReview } from '@/components/review';
 import { AiMark, PressableScale } from '@/components/motion';
+import { type DayValues, fetchEntryForDay, saveDayValues } from '@/data/checkins';
 import { moods } from '@/data/content';
+import { todayKey } from '@/lib/dates';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing, tints } from '@/theme';
 
-type Status = 'replying' | 'idle' | 'saving' | 'done';
+type Status = 'loading' | 'replying' | 'idle' | 'saving' | 'review' | 'storing' | 'done';
 
 export default function CheckinChat() {
   const router = useRouter();
@@ -28,20 +35,27 @@ export default function CheckinChat() {
   const recordActivity = useAppStore((s) => s.recordActivity);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [status, setStatus] = useState<Status>('replying');
+  const [status, setStatus] = useState<Status>('loading');
+  /** True when this continues an entry already written today. */
+  const [resumed, setResumed] = useState(false);
+  const [saved, setSaved] = useState<DayValues | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<CheckinResult | null>(null);
   /** True while the composer is recording or transcribing. */
   const [voiceBusy, setVoiceBusy] = useState(false);
 
   /** Asks the AI for its next message and streams it into the conversation. */
-  const requestReply = async (history: ChatMessage[]) => {
+  const requestReply = async (history: ChatMessage[], resume = false) => {
     setStatus('replying');
     setError(null);
     try {
-      await streamCheckinReply(history, (textSoFar) => {
-        setMessages([...history, { role: 'assistant', content: textSoFar }]);
-      });
+      await streamCheckinReply(
+        history,
+        (textSoFar) => {
+          setMessages([...history, { role: 'assistant', content: textSoFar }]);
+        },
+        { resume },
+      );
       setStatus('idle');
     } catch (err) {
       setMessages(history);
@@ -50,9 +64,19 @@ export default function CheckinChat() {
     }
   };
 
-  // The AI opens the conversation.
+  // Continue today's entry if there is one; otherwise the AI opens a new conversation.
   useEffect(() => {
-    requestReply([]);
+    fetchEntryForDay(todayKey())
+      .then((entry) => {
+        if (entry?.messages.length) {
+          setResumed(true);
+          setMessages(entry.messages);
+          requestReply(entry.messages, true);
+        } else {
+          requestReply([]);
+        }
+      })
+      .catch(() => requestReply([]));
   }, []);
 
   const sendText = (text: string) => {
@@ -67,15 +91,30 @@ export default function CheckinChat() {
     try {
       setResult(await completeCheckin(messages));
       recordActivity();
-      setStatus('done');
+      setStatus('review');
     } catch (err) {
       setError((err as Error).message);
       setStatus('idle');
     }
   };
 
+  /** Saves the confirmed (or adjusted) values to the entry and the calendar. */
+  const confirm = async (values: DayValues, changedByUser: boolean) => {
+    if (!result) return;
+    setStatus('storing');
+    try {
+      await saveDayValues(result.checkin.id, result.checkin.day ?? todayKey(), values, changedByUser);
+      setSaved(values);
+      setStatus('done');
+    } catch (err) {
+      setError((err as Error).message);
+      setStatus('review');
+    }
+  };
+
   const hasUserMessage = messages.some((m) => m.role === 'user');
-  const waitingForFirstWord = status === 'replying' && messages[messages.length - 1]?.role !== 'assistant';
+  const waitingForFirstWord =
+    status === 'loading' || (status === 'replying' && messages[messages.length - 1]?.role !== 'assistant');
   const weekday = new Date().toLocaleDateString([], { weekday: 'long' });
   const finishBlocked = status !== 'idle' || voiceBusy;
 
@@ -90,17 +129,31 @@ export default function CheckinChat() {
         <Animated.View entering={FadeIn.duration(400)} style={styles.header}>
           <CompanionAvatar size={40} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.headerTitle}>{status === 'done' ? 'Saved to your diary' : "Tonight's check-in"}</Text>
-            <AiMark label="WITH YOUR AI COMPANION" size={11} />
+            <Text style={styles.headerTitle}>
+              {status === 'done' ? 'Saved to your calendar' : status === 'review' || status === 'storing' ? 'Your day' : resumed ? "Today's check-in" : "Tonight's check-in"}
+            </Text>
+            <AiMark label={resumed ? "CONTINUING TODAY'S ENTRY" : 'WITH YOUR AI COMPANION'} size={11} />
           </View>
           <Pressable onPress={() => router.back()} hitSlop={10} style={styles.close} accessibilityLabel="Close">
             <Ionicons name="close" size={20} color={colors.inkSoft} />
           </Pressable>
         </Animated.View>
 
-        {status === 'done' && result ? (
+        {(status === 'review' || status === 'storing') && result ? (
+          <ScrollView contentContainerStyle={[styles.summary, { paddingBottom: insets.bottom + spacing.xl }]}>
+            {result.checkin.risk_level !== 'none' && <CrisisCard />}
+            <DayReview
+              suggested={{ stress: result.checkin.stress, sleep: result.checkin.sleep, mood: result.checkin.emotion }}
+              reasons={result.checkin.score_reasons ?? {}}
+              saving={status === 'storing'}
+              onSave={confirm}
+            />
+            {error && <Text style={styles.errorText}>{error}</Text>}
+          </ScrollView>
+        ) : status === 'done' && result ? (
           <Summary
             result={result}
+            values={saved}
             onDone={() => router.back()}
             onOpenStory={(id) => router.replace({ pathname: '/success/[id]', params: { id } })}
             bottomInset={insets.bottom}
@@ -178,27 +231,28 @@ export default function CheckinChat() {
 /** The saved entry, plus crisis contacts when the conversation raised concern. */
 function Summary({
   result,
+  values,
   onDone,
   onOpenStory,
   bottomInset,
 }: {
   result: CheckinResult;
+  values: DayValues | null;
   onDone: () => void;
   onOpenStory: (id: string) => void;
   bottomInset: number;
 }) {
   const c = result.checkin;
   const mood = moods.find((m) => m.key === c.mood);
+  const v = values ?? { stress: c.stress, sleep: c.sleep, mood: c.emotion };
   const chips = [
-    { kind: 'stress' as const, label: 'Stress', value: c.stress === null ? null : String(c.stress) },
-    { kind: 'sleep' as const, label: 'Sleep', value: c.sleep === null ? null : String(c.sleep) },
-    { kind: 'mood' as const, label: 'Mood', value: c.emotion === null ? null : moodWord(c.emotion) },
+    { kind: 'stress' as const, label: 'Stress', value: v.stress },
+    { kind: 'sleep' as const, label: 'Sleep', value: v.sleep },
+    { kind: 'mood' as const, label: 'Mood', value: v.mood },
   ].filter((s) => s.value !== null);
 
   return (
     <ScrollView contentContainerStyle={[styles.summary, { paddingBottom: bottomInset + spacing.xl }]}>
-      {c.risk_level !== 'none' && <CrisisCard />}
-
       <Animated.View entering={FadeInDown.duration(500)} style={styles.summaryCard}>
         <Animated.Text entering={ZoomIn.duration(500).delay(200).springify()} style={styles.summaryEmoji}>
           {mood?.emoji ?? '🙂'}

@@ -2,8 +2,13 @@
  * checkin-complete — finishes a check-in.
  *
  * Request:  POST { messages: [...], day?: 'YYYY-MM-DD' }
- * Response: { checkin, metrics, successes } — the saved check-in, today's
- *           tracker values, and success stories created from plans that worked.
+ * Response: { checkin, metrics, successes } — the saved check-in (with the
+ *           reasons behind its suggested values), today's tracker values, and
+ *           success stories created from plans that worked.
+ *
+ * One entry per day: if the user already checked in today (and reopened the
+ * check-in to continue), the whole conversation is analyzed again and that
+ * day's entry is updated instead of creating a second one.
  *
  * Steps: AI extracts structured data → save check-in → update today's
  * tracker values → save the updated memory → split into topic chunks for
@@ -70,13 +75,22 @@ export default {
       return Response.json({ error: 'The AI could not summarize this check-in. Try again.' }, { status: 502 });
     }
 
-    // 2. Save the check-in (user_id is filled in from the login by the database).
-    const { memory, topics, plan_outcomes, ...record } = extraction;
-    const { data: checkin, error: checkinError } = await db
+    // 2. Save the check-in: update today's entry if there is one, otherwise create it.
+    const { memory, topics, plan_outcomes, reasons, ...record } = extraction;
+    const { data: existingEntry } = await db
       .from('checkins')
-      .insert({ ...record, messages, completed_at: new Date().toISOString() })
-      .select('id, created_at, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level')
-      .single();
+      .select('id')
+      .eq('day', day)
+      .not('completed_at', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const row = { ...record, score_reasons: reasons, messages, day, completed_at: new Date().toISOString() };
+    const columns =
+      'id, created_at, day, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level, score_reasons';
+    const { data: checkin, error: checkinError } = existingEntry
+      ? await db.from('checkins').update(row).eq('id', existingEntry.id).select(columns).single()
+      : await db.from('checkins').insert(row).select(columns).single();
     if (checkinError) {
       console.error('Saving check-in failed:', checkinError);
       return Response.json({ error: 'Could not save the check-in.' }, { status: 500 });
@@ -121,7 +135,9 @@ export default {
 
     // 5. Index the check-in for RAG search: one chunk per topic. If this
     //    fails, indexMissing() later adds a whole-check-in chunk instead.
+    //    A continued entry replaces its old chunks, since the topics may have changed.
     try {
+      if (existingEntry) await db.from('checkin_chunks').delete().eq('checkin_id', checkin.id);
       await saveChunks(db, getEmbedder(), checkin.id, topicChunks({ ...record, messages }, topics));
     } catch (err) {
       console.error('Indexing check-in failed:', err);

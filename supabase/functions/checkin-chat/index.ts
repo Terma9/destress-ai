@@ -1,16 +1,23 @@
 /**
  * checkin-chat — one turn of the AI check-in conversation.
  *
- * Request:  POST { messages: [{ role: 'user' | 'assistant', content }], day?: 'YYYY-MM-DD', language?: 'en' }
- *           (empty list = start a new check-in; the AI opens. `day` = user's local
- *           date, `language` = app language the AI opens in, default English)
+ * Request:  POST { messages: [{ role: 'user' | 'assistant', content }], day?: 'YYYY-MM-DD',
+ *                  language?: 'en', resume?: true }
+ *           (empty list = start a new check-in; the AI opens. `resume` = the user reopened
+ *           today's check-in, `messages` holds today's conversation so far, and the AI
+ *           welcomes them back. `day` = user's local date, `language` = opening language)
  * Response: the AI's reply, streamed as plain text chunks.
  *
  * Runs as the calling user (RLS applies), so it can only load their own data.
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
-import { buildCheckinSystemPrompt, START_CHECKIN_MESSAGE, type UserContext } from '../_shared/prompts.ts';
+import {
+  buildCheckinSystemPrompt,
+  RESUME_CHECKIN_MESSAGE,
+  START_CHECKIN_MESSAGE,
+  type UserContext,
+} from '../_shared/prompts.ts';
 import { indexMissing, relatedConversations } from '../_shared/rag.ts';
 import { fetchOpenPlans } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseLanguage, parseMessages } from '../_shared/validation.ts';
@@ -109,9 +116,13 @@ export default {
       return Response.json({ error: (err as Error).message }, { status: 500 });
     }
 
-    const input: ChatMessage[] = messages.length
-      ? messages
-      : [{ role: 'user', content: START_CHECKIN_MESSAGE }];
+    // Hidden cue messages are only sent to the model, never saved with the conversation.
+    const resume = (body as { resume?: unknown })?.resume === true && messages.length > 0;
+    const input: ChatMessage[] = !messages.length
+      ? [{ role: 'user', content: START_CHECKIN_MESSAGE }]
+      : resume
+        ? [...messages, { role: 'user', content: RESUME_CHECKIN_MESSAGE }]
+        : messages;
 
     // Forward the model's text to the app as it arrives.
     const encoder = new TextEncoder();

@@ -38,7 +38,7 @@ export default {
 
     const rows = persona.checkins.map(({ daysAgo, labels: _labels, ...entry }) => {
       const at = `${shiftDay(today, daysAgo)}T18:00:00Z`;
-      return { ...entry, risk_level: 'none', created_at: at, completed_at: at };
+      return { ...entry, risk_level: 'none', day: shiftDay(today, daysAgo), created_at: at, completed_at: at };
     });
 
     // One insert with many rows is one statement: either all check-ins are saved or none.

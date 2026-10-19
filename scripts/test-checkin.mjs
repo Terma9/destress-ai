@@ -92,6 +92,8 @@ try {
   check('Themes include work', c.themes.includes('work'), JSON.stringify(c.themes));
   check('"Helped" mentions the walk', c.helped.some((h) => /walk/i.test(h)), JSON.stringify(c.helped));
   check('Not flagged as a risk', c.risk_level === 'none', c.risk_level);
+  console.log(`      reasons: ${JSON.stringify(c.score_reasons)}`);
+  check('Each suggested value comes with a reason', Boolean(c.score_reasons?.stress && c.score_reasons?.sleep));
 
   const [metric] = await rest('GET', `daily_metrics?day=eq.${day}&select=*`);
   check("Today's tracker row was filled by the AI",
@@ -106,6 +108,12 @@ try {
   const opening = await fn('checkin-chat', { messages: [] });
   console.log(`      AI  : ${opening}\n`);
   check('The AI opens in English and follows up on the presentation or sleep', /presentation|sleep|slept/i.test(opening));
+
+  // --- 2b. Reopening today's check-in continues it ---
+  console.log('2b) Reopening today\'s check-in');
+  const welcomeBack = await fn('checkin-chat', { messages: first, resume: true });
+  console.log(`      AI  : ${welcomeBack}\n`);
+  check('Reopening welcomes the user back instead of starting over', /back|again|since|later|changed/i.test(welcomeBack));
 
   // --- 3. Hand-set tracker values win over the AI ---
   console.log('3) Manual tracker values');
@@ -127,6 +135,11 @@ try {
   ];
   const flagged = await fn('checkin-complete', { messages: heavy });
   check('A hopeless-sounding conversation is flagged', flagged.checkin.risk_level !== 'none', flagged.checkin.risk_level);
+
+  // --- 5. Still one entry for the day ---
+  const todays = await rest('GET', `checkins?day=eq.${day}&select=id`);
+  check('Finishing three times today still leaves one entry for the day', todays.length === 1, `${todays.length} entries`);
+  check('The day\'s entry was updated in place', todays[0]?.id === c.id);
 } finally {
   await rest('DELETE', 'checkins?id=not.is.null');
   await rest('DELETE', `daily_metrics?day=eq.${day}`);

@@ -11,13 +11,41 @@ import { Logo } from '@/components/brand';
 import { FieldTile } from '@/components/fields';
 import { AiMark, FadeIn, LivingGradient, PressableScale, PulseDot, Sheen } from '@/components/motion';
 import { Card, Screen } from '@/components/ui';
-import { useCheckins } from '@/data/checkins';
+import { type Checkin, useCheckins } from '@/data/checkins';
 import { useLatestInsight } from '@/data/deepDives';
 import { lastSevenDays, useDailyMetrics } from '@/data/metrics';
 import { computeStreak, dateKey, getGreeting, todayKey } from '@/lib/dates';
 import { disableDailyReminder, enableDailyReminder, remindersSupported } from '@/lib/reminders';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fields, font, fontFamily, gradients, radii, shadow, spacing } from '@/theme';
+
+/** "Yesterday", or a short date like "Fri, 16 Oct". */
+function dayLabel(day: string): string {
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (day === dateKey(yesterday)) return 'Yesterday';
+  return new Date(`${day}T12:00:00`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+/** The entry's three values as small color-field chips. */
+function ValueChips({ entry }: { entry: Checkin }) {
+  const items = [
+    { kind: 'stress' as const, label: 'Stress', value: entry.stress },
+    { kind: 'sleep' as const, label: 'Sleep', value: entry.sleep },
+    { kind: 'mood' as const, label: 'Mood', value: entry.emotion },
+  ];
+  return (
+    <View style={styles.chips}>
+      {items.map((i) => (
+        <View key={i.kind} style={[styles.chip, { backgroundColor: fields[i.kind].from }]}>
+          <Text style={[styles.chipText, { color: fields[i.kind].ink }]}>
+            {i.label} {i.value ?? '–'}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function Today() {
   const router = useRouter();
@@ -29,7 +57,9 @@ export default function Today() {
   const greeting = getGreeting();
 
   const today = todayKey();
-  const todaysEntry = checkins?.find((c) => dateKey(new Date(c.created_at)) === today) ?? null;
+  const entryDay = (c: Checkin) => c.day ?? dateKey(new Date(c.created_at));
+  const todaysEntry = checkins?.find((c) => entryDay(c) === today) ?? null;
+  const recent = (checkins ?? []).filter((c) => entryDay(c) !== today).slice(0, 5);
 
   // Show today's values once there are any, otherwise yesterday's.
   const days = lastSevenDays();
@@ -93,6 +123,13 @@ export default function Today() {
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textFaint} />
             </View>
+            <View style={styles.entryValues}>
+              <ValueChips entry={todaysEntry} />
+            </View>
+            <PressableScale onPress={() => router.push('/diary/new')} style={styles.continueBtn}>
+              <Ionicons name="chatbubble-ellipses-outline" size={15} color={colors.ink} />
+              <Text style={styles.continueText}>Add to today's check-in</Text>
+            </PressableScale>
           </Card>
         ) : (
           <PressableScale onPress={() => router.push('/diary/new')} accessibilityLabel="Start tonight's check-in">
@@ -151,6 +188,31 @@ export default function Today() {
           </LivingGradient>
         </PressableScale>
       </FadeIn>
+
+      {recent.length > 0 && (
+        <FadeIn delay={400} style={{ marginTop: spacing.xl }}>
+          <View style={styles.recentHead}>
+            <Text style={styles.label}>YOUR LAST DAYS</Text>
+            <Pressable onPress={() => router.push('/(tabs)/calendar')} hitSlop={8}>
+              <Text style={styles.recentAll}>Calendar →</Text>
+            </Pressable>
+          </View>
+          <View style={{ gap: spacing.sm }}>
+            {recent.map((entry) => (
+              <Card
+                key={entry.id}
+                style={styles.recentCard}
+                onPress={() => router.push({ pathname: '/entry/[id]', params: { id: entry.id } })}>
+                <Text style={styles.recentDay}>{dayLabel(entry.day ?? dateKey(new Date(entry.created_at)))}</Text>
+                <Text style={styles.recentTitle} numberOfLines={1}>
+                  {entry.title ?? 'Check-in'}
+                </Text>
+                <ValueChips entry={entry} />
+              </Card>
+            ))}
+          </View>
+        </FadeIn>
+      )}
     </Screen>
   );
 }
@@ -213,6 +275,27 @@ const styles = StyleSheet.create({
   doneLabel: { ...font.small, color: colors.textMuted },
   doneTitle: { ...font.title, color: colors.ink },
   label: { ...font.label, color: colors.textMuted, marginBottom: spacing.sm },
+  entryValues: { marginTop: spacing.md },
+  continueBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    marginTop: spacing.md,
+    backgroundColor: colors.sand,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  continueText: { fontFamily: fontFamily.semibold, fontSize: 13, color: colors.ink },
+  recentHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  recentAll: { fontFamily: fontFamily.semibold, fontSize: 12, color: colors.inkSoft },
+  recentCard: { paddingVertical: 14, gap: 6 },
+  recentDay: { ...font.small, color: colors.textMuted },
+  recentTitle: { ...font.title, color: colors.ink },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  chip: { borderRadius: radii.pill, paddingHorizontal: 9, paddingVertical: 4 },
+  chipText: { fontFamily: fontFamily.semibold, fontSize: 11 },
   tiles: { flexDirection: 'row', gap: 9 },
   insight: { overflow: 'hidden' },
   insightText: { fontFamily: fontFamily.medium, fontSize: 15, lineHeight: 21, color: colors.ink, marginTop: spacing.sm },

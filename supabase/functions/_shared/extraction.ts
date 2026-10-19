@@ -42,8 +42,12 @@ export type CheckinExtraction = {
     plan: string;
     outcome: (typeof PLAN_OUTCOMES)[number];
     what_helped: string;
+    /** Stress intensity 0–10 after the plan, if the user said or clearly implied it. */
+    intensity_after: number | null;
     theme: (typeof THEMES)[number];
   }[];
+  /** Why each score was suggested, shown to the user in the review step. */
+  reasons: { stress: string; sleep: string; mood: string };
   memory: string;
 };
 
@@ -72,6 +76,7 @@ export const CHECKIN_SCHEMA = {
     'risk_level',
     'topics',
     'plan_outcomes',
+    'reasons',
     'memory',
   ],
   properties: {
@@ -82,7 +87,7 @@ export const CHECKIN_SCHEMA = {
     },
     mood: { type: 'string', enum: MOODS, description: 'Overall mood today.' },
     stress: score('Stress level, where 10 is extremely stressed.'),
-    emotion: score('Emotional wellbeing, where 10 is very good.'),
+    emotion: score('Mood, i.e. how they feel overall today, where 10 is very good.'),
     sleep: score('Sleep quality last night, where 10 is excellent.'),
     themes: {
       type: 'array',
@@ -138,7 +143,7 @@ export const CHECKIN_SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['plan', 'outcome', 'what_helped', 'theme'],
+        required: ['plan', 'outcome', 'what_helped', 'theme', 'intensity_after'],
         properties: {
           plan: { type: 'string', description: 'The plan label, e.g. "P1".' },
           outcome: {
@@ -152,7 +157,23 @@ export const CHECKIN_SCHEMA = {
               'What made the difference, in 1–2 sentences addressed to the user ("You…"), from their own words. Empty if not_yet or not_discussed.',
           },
           theme: { type: 'string', enum: THEMES, description: 'The life area of the plan.' },
+          intensity_after: {
+            type: ['integer', 'null'],
+            description: 'How intense the stress about it is now, 0–10, only if the user says or clearly implies it. Otherwise null.',
+          },
         },
+      },
+    },
+    reasons: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['stress', 'sleep', 'mood'],
+      description:
+        'For each score, one short sentence addressed to the user, in the language of the conversation, naming what in the conversation it is based on (e.g. "You mentioned the deadline twice."). Empty string when the score is null.',
+      properties: {
+        stress: { type: 'string' },
+        sleep: { type: 'string' },
+        mood: { type: 'string' },
       },
     },
     memory: {
@@ -175,7 +196,7 @@ export function buildExtractionSystemPrompt(input: {
 
 Rules:
 - Base everything only on what the user actually said. Don't invent details.
-- Use null for a score the conversation gives no basis for.
+- Use null for a score the conversation gives no basis for. The user reviews and can adjust every score, so add a short, honest reason for each one.
 - Keep "helped" and "follow_ups" short and concrete.
 - Topics: split the conversation by subject, not by message. Several messages about one subject form one topic; a message about two subjects belongs to both.
 
@@ -213,6 +234,12 @@ export function sanitize(e: CheckinExtraction): CheckinExtraction {
     emotion: clamp(e.emotion),
     sleep: clamp(e.sleep),
     follow_ups: e.follow_ups.slice(0, 2),
+    plan_outcomes: e.plan_outcomes.map((o) => ({ ...o, intensity_after: clamp(o.intensity_after) })),
+    reasons: {
+      stress: e.stress === null ? '' : e.reasons.stress.trim().slice(0, 200),
+      sleep: e.sleep === null ? '' : e.reasons.sleep.trim().slice(0, 200),
+      mood: e.emotion === null ? '' : e.reasons.mood.trim().slice(0, 200),
+    },
     topics: e.topics.filter((t) => t.summary.trim()).slice(0, 5),
     memory: e.memory.trim().slice(0, 1500),
   };

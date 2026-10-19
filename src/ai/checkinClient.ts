@@ -16,6 +16,7 @@ export type CheckinResult = {
   checkin: {
     id: string;
     created_at: string;
+    day: string;
     title: string;
     summary: string;
     mood: 'great' | 'good' | 'ok' | 'low' | 'stressed';
@@ -26,6 +27,8 @@ export type CheckinResult = {
     helped: string[];
     follow_ups: string[];
     risk_level: 'none' | 'elevated' | 'high';
+    /** Why the AI suggested each value, for the review step. */
+    score_reasons: { stress?: string; sleep?: string; mood?: string };
   };
   metrics: { day: string; stress: number | null; emotion: number | null; sleep: number | null; source: string } | null;
   /** Success stories created because an Untangle plan worked. */
@@ -106,8 +109,9 @@ export async function transcribeAudio(uri: string): Promise<string> {
 export async function streamCheckinReply(
   messages: ChatMessage[],
   onText: (textSoFar: string) => void,
+  options: { resume?: boolean } = {},
 ): Promise<string> {
-  return readStream(await post('checkin-chat', { messages }), onText);
+  return readStream(await post('checkin-chat', { messages, resume: options.resume === true }), onText);
 }
 
 /** Streams the AI's next Untangle question. The first message is the user's problem. */

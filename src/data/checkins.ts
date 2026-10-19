@@ -11,6 +11,8 @@ import { supabase } from '@/lib/supabase';
 export type Checkin = {
   id: string;
   created_at: string;
+  /** The user's local calendar day of the entry (one entry per day). */
+  day: string | null;
   title: string | null;
   summary: string | null;
   mood: MoodKey | null;
@@ -21,6 +23,7 @@ export type Checkin = {
   helped: string[];
   follow_ups: string[];
   risk_level: 'none' | 'elevated' | 'high';
+  score_reasons: { stress?: string; sleep?: string; mood?: string };
 };
 
 export type CheckinWithMessages = Checkin & {
@@ -28,7 +31,7 @@ export type CheckinWithMessages = Checkin & {
 };
 
 const LIST_COLUMNS =
-  'id, created_at, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level';
+  'id, created_at, day, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level, score_reasons';
 
 export async function fetchCheckins(): Promise<Checkin[]> {
   const { data, error } = await supabase
@@ -76,4 +79,42 @@ export function useCheckins() {
 
 export function moodEmoji(mood: MoodKey | null): string {
   return moods.find((m) => m.key === mood)?.emoji ?? '🙂';
+}
+
+/** Today's entry with its conversation, so the check-in can continue it. Null if there is none yet. */
+export async function fetchEntryForDay(day: string): Promise<CheckinWithMessages | null> {
+  const { data, error } = await supabase
+    .from('checkins')
+    .select(`${LIST_COLUMNS}, messages`)
+    .eq('day', day)
+    .not('completed_at', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as CheckinWithMessages | null;
+}
+
+export type DayValues = { stress: number | null; sleep: number | null; mood: number | null };
+
+/**
+ * Saves the values the user confirmed in the review step, on the entry and in
+ * the calendar. Values the user changed count as their own ("manual"), which
+ * the AI never overwrites later; unchanged AI suggestions stay "ai".
+ */
+export async function saveDayValues(entryId: string, day: string, values: DayValues, changedByUser: boolean) {
+  const { stress, sleep, mood } = values;
+  const [entry, metric] = await Promise.all([
+    supabase.from('checkins').update({ stress, sleep, emotion: mood }).eq('id', entryId),
+    changedByUser
+      ? supabase
+          .from('daily_metrics')
+          .upsert(
+            { day, stress, sleep, emotion: mood, source: 'manual', updated_at: new Date().toISOString() },
+            { onConflict: 'user_id,day' },
+          )
+      : Promise.resolve({ error: null }),
+  ]);
+  if (entry.error) throw new Error(entry.error.message);
+  if (metric.error) throw new Error(metric.error.message);
 }

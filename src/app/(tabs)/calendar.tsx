@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeIn as Appear, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { InlineLoader } from '@/components/brand';
-import { FIELD_LABELS, fieldShade, moodWord } from '@/components/fields';
+import { FIELD_LABELS, fieldShade } from '@/components/fields';
 import { FadeIn, PressableScale } from '@/components/motion';
 import { Card, EmptyState, Screen } from '@/components/ui';
 import { useMonth } from '@/data/calendar';
@@ -146,7 +146,7 @@ export default function Calendar() {
                 return (
                   <View key={k} style={[styles.chip, { backgroundColor: fields[k].from }]}>
                     <Text style={[styles.chipText, { color: fields[k].ink }]}>
-                      {FIELD_LABELS[k]} {k === 'mood' ? moodWord(v) : v ?? '–'}
+                      {FIELD_LABELS[k]} {v ?? '–'}
                     </Text>
                   </View>
                 );

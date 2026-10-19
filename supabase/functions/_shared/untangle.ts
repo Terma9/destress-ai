@@ -241,7 +241,7 @@ export async function fetchOpenPlans(db: SupabaseClient): Promise<OpenPlan[]> {
 export async function recordPlanOutcomes(
   db: SupabaseClient,
   plans: (OpenPlan & { ref: string })[],
-  outcomes: { plan: string; outcome: string; what_helped: string; theme: string }[],
+  outcomes: { plan: string; outcome: string; what_helped: string; theme: string; intensity_after: number | null }[],
 ): Promise<{ id: string; title: string }[]> {
   const byRef = new Map(plans.map((p) => [p.ref.toUpperCase(), p]));
   const successes: { id: string; title: string }[] = [];
@@ -252,7 +252,15 @@ export async function recordPlanOutcomes(
 
     const { error } = await db
       .from('untangle_sessions')
-      .update({ outcome: o.outcome, outcome_note: o.what_helped.trim() || null, outcome_at: new Date().toISOString() })
+      .update({
+        outcome: o.outcome,
+        outcome_note: o.what_helped.trim() || null,
+        outcome_at: new Date().toISOString(),
+        // The "how intense is it now" answer comes from this check-in, not from the plan screen.
+        ...(o.intensity_after !== null && plan.intensity_after === null
+          ? { intensity_after: o.intensity_after, completed_at: new Date().toISOString() }
+          : {}),
+      })
       .eq('id', plan.id);
     if (error) throw error;
 
@@ -267,7 +275,7 @@ export async function recordPlanOutcomes(
           situation: plan.problem,
           solution: o.what_helped.trim() || doneSteps.join(' ') || plan.steps[0]?.text || '',
           intensity_before: plan.intensity_before,
-          intensity_after: plan.intensity_after,
+          intensity_after: o.intensity_after ?? plan.intensity_after,
         })
         .select('id, title')
         .single();

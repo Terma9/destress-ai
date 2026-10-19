@@ -8,16 +8,6 @@ import { type FieldKey, fields, fontFamily, radii } from '@/theme';
 
 export const FIELD_LABELS: Record<FieldKey, string> = { stress: 'Stress', sleep: 'Sleep', mood: 'Mood' };
 
-/** Mood is tracked as a 0–10 score; people read it better as a word. */
-export function moodWord(score: number | null): string {
-  if (score === null) return '–';
-  if (score >= 8) return 'great';
-  if (score >= 6) return 'good';
-  if (score >= 4) return 'ok';
-  if (score >= 2) return 'low';
-  return 'heavy';
-}
-
 /**
  * Background and text color for a 0–10 value: four steps from the field's
  * lightest tint to its deepest tone, so stronger values read stronger.
@@ -48,8 +38,6 @@ export function FieldTile({
       <Text style={[styles.label, { color: f.ink }]}>{FIELD_LABELS[kind]}</Text>
       {value === null ? (
         <Text style={[styles.value, { color: f.ink, opacity: 0.45 }]}>–</Text>
-      ) : kind === 'mood' ? (
-        <Text style={[styles.value, styles.word, { color: f.ink }]}>{moodWord(value)}</Text>
       ) : (
         <CountUp value={value} style={[styles.value, { color: f.ink }]} />
       )}
@@ -72,6 +60,5 @@ const styles = StyleSheet.create({
   },
   label: { fontFamily: fontFamily.semibold, fontSize: 12 },
   value: { fontFamily: fontFamily.bold, fontSize: 34, letterSpacing: -1, lineHeight: 38 },
-  word: { fontSize: 26, letterSpacing: -0.6 },
   spark: { position: 'absolute', right: 10, bottom: 12, opacity: 0.55 },
 });
