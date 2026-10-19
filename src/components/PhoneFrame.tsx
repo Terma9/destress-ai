@@ -148,6 +148,7 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
 
   return (
     <View style={[styles.column, { width, height }]}>
+      <View style={[styles.columnContent, showInfo && { opacity: 0 }]} pointerEvents={showInfo ? 'none' : 'auto'}>
       <View style={styles.brandRow}>
         <Logo size={44} />
         <Text style={styles.brand}>
@@ -179,8 +180,10 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
         </LinearGradient>
       </PressableScale>
       {typeof demo === 'object' && <Text style={styles.error}>{demo.error}</Text>}
+      </View>
 
       {showInfo && (
+        <View style={styles.panelWrap} pointerEvents="box-none">
         <Animated.View entering={FadeInLeft.duration(260)} exiting={FadeOutLeft.duration(200)} style={styles.panel}>
           <View style={styles.panelHead}>
             <Text style={styles.panelTitle}>How it works</Text>
@@ -218,6 +221,7 @@ function LeftColumn({ width, height }: { width: number; height: number }) {
             })}
           </ScrollView>
         </Animated.View>
+        </View>
       )}
     </View>
   );
@@ -301,6 +305,7 @@ const styles = StyleSheet.create({
   },
 
   column: { justifyContent: 'center' },
+  columnContent: { justifyContent: 'center' },
 
   // Left column
   brandRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
@@ -347,12 +352,10 @@ const styles = StyleSheet.create({
   bylineName: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
 
   // "How it works" panel, over the left column
+  // Only as tall as its content, centred in the column (no empty white below).
+  panelWrap: { position: 'absolute', top: 0, bottom: 0, left: -12, right: -12, justifyContent: 'center' },
   panel: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: -12,
-    right: -12,
+    maxHeight: '100%',
     backgroundColor: '#FFFFFF',
     borderRadius: radii.xl,
     ...shadow.lifted,
@@ -367,8 +370,8 @@ const styles = StyleSheet.create({
   },
   panelTitle: { ...font.h2, color: colors.ink },
   close: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.sand, alignItems: 'center', justifyContent: 'center' },
-  panelBody: { paddingHorizontal: 14, paddingBottom: 24, gap: 4 },
-  feature: { flexDirection: 'row', gap: 12, padding: 10, borderRadius: radii.md },
+  panelBody: { paddingHorizontal: 14, paddingTop: 4, paddingBottom: 16, gap: 4 },
+  feature: { flexDirection: 'row', gap: 12, paddingHorizontal: 10, paddingVertical: 11, borderRadius: radii.md },
   featureOpen: { backgroundColor: colors.ivory },
   featureHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 34 },
   featureIcon: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },

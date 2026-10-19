@@ -66,7 +66,6 @@ export default function WeeklyInsights() {
         </Card>
       ) : !analysis ? (
         <Card style={styles.center}>
-          <Logo size={56} />
           <Text style={styles.emptyTitle}>Your first look back is coming</Text>
           <Text style={styles.note}>
             After {MIN_CHECKINS} check-ins I'll show you your week in numbers, patterns with the entries behind them,

@@ -49,7 +49,7 @@ export default function Start() {
       end={{ x: 0.2, y: 1 }}
       style={{ flex: 1 }}>
       <KeyboardAvoidingView
-        style={[styles.container, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + spacing.xl }]}
+        style={[styles.container, { paddingTop: insets.top + spacing.xl, paddingBottom: insets.bottom + spacing.lg }]}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <View style={styles.center}>
           <FadeIn>
@@ -63,7 +63,7 @@ export default function Start() {
             <Text style={styles.tagline}>
               A short conversation every evening, patterns from your days, and help when stress hits.
             </Text>
-            <View style={{ marginTop: spacing.md }}>
+            <View style={{ marginTop: spacing.lg }}>
               <AiMark label="A COMPANION THAT LEARNS WHAT HELPS YOU" />
             </View>
           </FadeIn>
@@ -108,16 +108,16 @@ export default function Start() {
 }
 
 const styles = StyleSheet.create({
-  demo: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.xs },
+  demo: { alignItems: 'center', paddingVertical: spacing.md, marginTop: spacing.sm },
   demoRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   demoText: { ...font.body, color: colors.inkSoft },
   demoLink: { fontFamily: fontFamily.semibold, color: colors.ink, textDecorationLine: 'underline' },
   demoError: { ...font.small, color: colors.danger, textAlign: 'center' },
   container: { flex: 1, paddingHorizontal: spacing.xl, justifyContent: 'space-between' },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  textBlock: { alignItems: 'center', marginTop: -spacing.md },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingBottom: spacing.xl },
+  textBlock: { alignItems: 'center', marginTop: -spacing.sm },
   brand: { fontFamily: fontFamily.bold, fontSize: 34, letterSpacing: -1, color: colors.ink },
-  tagline: { ...font.body, fontSize: 15, color: colors.inkSoft, textAlign: 'center', lineHeight: 22, marginTop: spacing.sm, maxWidth: 300 },
+  tagline: { ...font.body, fontSize: 15, color: colors.inkSoft, textAlign: 'center', lineHeight: 23, marginTop: spacing.md, maxWidth: 290 },
   nameInput: {
     backgroundColor: colors.card,
     borderRadius: radii.md,
