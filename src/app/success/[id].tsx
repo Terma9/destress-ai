@@ -30,7 +30,7 @@ export default function SuccessStoryScreen() {
   const router = useRouter();
   const [story, setStory] = useState<SuccessStory | null | undefined>();
   const [comment, setComment] = useState('');
-  const [draft, setDraft] = useState<(StoryText & { removed: string[] }) | null>(null);
+  const [draft, setDraft] = useState<{ title: string; body: string; removed: string[] } | null>(null);
   const [blocked, setBlocked] = useState<Review | null>(null);
   const [busy, setBusy] = useState<'idle' | 'saving' | 'preparing' | 'publishing' | 'removing'>('idle');
   const [error, setError] = useState<string | null>(null);
@@ -85,19 +85,13 @@ export default function SuccessStoryScreen() {
   const prepare = () =>
     run('preparing', async () => {
       if (comment.trim() !== (story.comment ?? '')) await saveComment(story.id, comment.trim());
-      const review = await previewStory(story.id, comment.trim());
+      const review = await previewStory(story.id);
       if (!review.allowed || review.crisis) {
         setBlocked(review);
         return;
       }
       setBlocked(null);
-      setDraft({
-        title: review.title,
-        situation: review.situation,
-        solution: review.solution,
-        comment: review.comment,
-        removed: review.personal_details,
-      });
+      setDraft({ title: review.title, body: review.body, removed: review.personal_details });
     });
 
   const publish = () =>
@@ -174,9 +168,12 @@ export default function SuccessStoryScreen() {
             <Text style={[styles.body, { flex: 1 }]}>Shared anonymously. This is what others see:</Text>
           </View>
           <Text style={styles.previewTitle}>{story.public_title}</Text>
-          <Text style={styles.previewText}>{story.public_situation}</Text>
-          <Text style={styles.previewText}>What helped: {story.public_solution}</Text>
-          {story.public_comment ? <Text style={styles.previewComment}>"{story.public_comment}"</Text> : null}
+          <Text style={styles.previewText} numberOfLines={5}>
+            {story.public_body ?? `${story.public_situation} ${story.public_solution}`}
+          </Text>
+          <Pressable style={styles.linkBtn} onPress={() => router.push({ pathname: '/story/[id]', params: { id: story.id } })}>
+            <Text style={styles.linkText}>Open it in the community →</Text>
+          </Pressable>
           <Pressable
             style={styles.linkBtn}
             disabled={busy !== 'idle'}
@@ -190,22 +187,20 @@ export default function SuccessStoryScreen() {
       ) : draft ? (
         <Card>
           <Text style={styles.body}>
-            Here's the anonymized version. Check it and edit anything you like before publishing.
+            Here's your story as a short post, written from your own words and anonymized. Make it yours: edit anything before publishing.
           </Text>
           {draft.removed.length > 0 && (
             <Text style={styles.removed}>Removed to protect your privacy: {draft.removed.join(', ')}</Text>
           )}
-          {(['title', 'situation', 'solution', 'comment'] as const).map((field) => (
+          {(['title', 'body'] as const).map((field) => (
             <View key={field} style={{ marginTop: spacing.md }}>
-              <Text style={styles.fieldLabel}>
-                {{ title: 'Title', situation: 'Situation', solution: 'What helped', comment: 'Your comment' }[field]}
-              </Text>
+              <Text style={styles.fieldLabel}>{field === 'title' ? 'Title' : 'Your story'}</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, field === 'body' && { minHeight: 220 }]}
                 value={draft[field]}
                 onChangeText={(v) => setDraft({ ...draft, [field]: v })}
-                multiline={field !== 'title'}
-                maxLength={1000}
+                multiline={field === 'body'}
+                maxLength={field === 'title' ? 120 : 4000}
               />
             </View>
           ))}
@@ -231,8 +226,9 @@ export default function SuccessStoryScreen() {
           )}
           {blocked && !blocked.crisis && <Text style={styles.blocked}>{blocked.reason}</Text>}
           <Text style={styles.body}>
-            Others in a similar spot could learn from what helped you. Before anything is shared, names, places and
-            other personal details are removed, and you see the result first. No one will see who wrote it.
+            Others in a similar spot could learn from your story. I'll write it as a short personal post from your own
+            words; names, places and other personal details are removed, and you can edit everything first. No one will
+            see who wrote it.
           </Text>
           <Pressable style={styles.primaryBtn} onPress={prepare} disabled={busy !== 'idle'}>
             {busy === 'preparing' ? (

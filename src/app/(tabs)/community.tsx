@@ -1,6 +1,7 @@
 /**
- * Community: anonymous success stories — a situation, what helped, and how
- * much the stress dropped. "For you" ranks them by similarity to the topics
+ * Community: a small blog of anonymous personal stories about what helped
+ * with stress. Cards show a preview; tapping opens the article with
+ * comments (story/[id]). "For you" ranks them by similarity to the topics
  * of the user's own check-ins (embeddings). Votes: "helpful" is counted and
  * shown. "Not for me" and "Report" take the story out of this user's feed
  * (the card slides away, with an undo for "not for me"); a downvote also
@@ -14,7 +15,7 @@ import Animated, { FadeInDown, FadeOutDown, FadeOutLeft, LinearTransition } from
 import { InlineLoader } from '@/components/brand';
 import { Card, EmptyState, Screen, TAB_BAR_SPACE } from '@/components/ui';
 import { intensityColor } from '@/components/untangle';
-import { type FeedStory, fetchFeed, reportStory, THEME_LABELS, voteStory } from '@/data/community';
+import { type FeedStory, fetchFeed, readingMinutes, reportStory, THEME_LABELS, voteStory } from '@/data/community';
 import { colors, font, fontFamily, radii, shadow, spacing } from '@/theme';
 
 const THEMES = ['study', 'work', 'sleep', 'family', 'relationships', 'social', 'health', 'money'];
@@ -173,9 +174,10 @@ function StoryCard({
   onRemove: (reason: 'vote' | 'report') => void;
 }) {
   const [reporting, setReporting] = useState(false);
+  const router = useRouter();
 
   return (
-    <Card style={{ marginBottom: spacing.md }}>
+    <Card style={{ marginBottom: spacing.md }} onPress={() => router.push({ pathname: '/story/[id]', params: { id: story.id } })}>
       <View style={styles.badges}>
         <Text style={styles.theme}>{THEME_LABELS[story.theme] ?? story.theme}</Text>
         {story.is_example && <Text style={styles.badge}>Example</Text>}
@@ -190,10 +192,12 @@ function StoryCard({
         )}
       </View>
       <Text style={styles.cardTitle}>{story.title}</Text>
-      <Text style={styles.situation}>{story.situation}</Text>
-      <Text style={styles.helpedLabel}>What helped</Text>
-      <Text style={styles.body}>{story.solution}</Text>
-      {story.comment ? <Text style={styles.comment}>"{story.comment}"</Text> : null}
+      <Text style={styles.excerpt} numberOfLines={4}>
+        {story.body}
+      </Text>
+      <Text style={styles.readMeta}>
+        Read story · {readingMinutes(story.body)} min{story.comments ? ` · ${story.comments} comment${story.comments === 1 ? '' : 's'}` : ''} →
+      </Text>
 
       <View style={styles.footer}>
         <Pressable style={[styles.voteBtn, story.my_vote === 1 && styles.voteUp]} onPress={onHelpful} disabled={story.is_mine}>
@@ -275,9 +279,9 @@ const styles = StyleSheet.create({
   scores: { fontSize: 15, fontWeight: '700', color: colors.textFaint },
   cardTitle: { ...font.title, color: colors.text },
   situation: { ...font.body, color: colors.textMuted, marginTop: 4, lineHeight: 20 },
-  helpedLabel: { ...font.small, color: colors.green, fontWeight: '700', marginTop: spacing.md, marginBottom: 2 },
   body: { ...font.body, color: colors.text, lineHeight: 21 },
-  comment: { ...font.body, color: colors.textMuted, fontStyle: 'italic', marginTop: spacing.sm },
+  excerpt: { ...font.body, color: colors.inkSoft, lineHeight: 21, marginTop: 6 },
+  readMeta: { fontFamily: fontFamily.semibold, fontSize: 13, color: colors.ink, marginTop: spacing.sm },
   footer: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   voteBtn: {
     flexDirection: 'row',

@@ -18,6 +18,7 @@ import {
   START_CHECKIN_MESSAGE,
   type UserContext,
 } from '../_shared/prompts.ts';
+import { indexExampleStories } from '../_shared/community.ts';
 import { indexMissing, relatedConversations } from '../_shared/rag.ts';
 import { fetchOpenPlans } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseLanguage, parseMessages } from '../_shared/validation.ts';
@@ -42,8 +43,9 @@ async function findRelated(
   try {
     const embedder = getEmbedder();
     if (!messages.length) {
-      // New check-in: make sure older entries are indexed. A no-op once they are.
-      await indexMissing(db, embedder);
+      // New check-in: make sure older entries (and the community's example
+      // stories, for "For you") are indexed. A no-op once they are.
+      await Promise.all([indexMissing(db, embedder), indexExampleStories(db, embedder)]);
       return [];
     }
     const lastUser = [...messages].reverse().find((m) => m.role === 'user');

@@ -1,9 +1,11 @@
 /**
- * community-publish — shares a success story anonymously.
+ * community-publish — shares a success story anonymously, as a blog post.
  *
- * Request:  POST { storyId, action: 'preview' }
- *           → { review }  the anonymized text + rule check, nothing is saved
- *           POST { storyId, action: 'publish', title, situation, solution, comment }
+ * Request:  POST { storyId, action: 'preview', draft? }
+ *           → { review }  the anonymized post + rule check, nothing is saved.
+ *             Without a draft, the AI writes the post from the story and the
+ *             user's own words while solving it; with a draft, it only anonymizes.
+ *           POST { storyId, action: 'publish', title, body }
  *           → { ok: true } or 422 { error }  (the final, possibly edited text)
  *
  * The final text is reviewed again before saving, so edits can't add
@@ -13,21 +15,13 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { indexExampleStories, reviewStory, storyDocument, type StoryText } from '../_shared/community.ts';
+import { indexExampleStories, reviewStory, storyDocument, storyMaterial } from '../_shared/community.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 
-const MAX_FIELD = 1000;
+const MAX_TITLE = 120;
+const MAX_BODY = 4000;
 
-function parseText(body: Record<string, unknown>): StoryText | null {
-  const fields = ['title', 'situation', 'solution', 'comment'] as const;
-  const out = {} as StoryText;
-  for (const f of fields) {
-    const v = body[f] ?? '';
-    if (typeof v !== 'string' || v.length > MAX_FIELD) return null;
-    out[f] = v.trim();
-  }
-  return out.title && out.situation && out.solution ? out : null;
-}
+const str = (v: unknown, max: number) => (typeof v === 'string' && v.trim().length <= max ? v.trim() : null);
 
 export default {
   fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
@@ -41,10 +35,10 @@ export default {
       return Response.json({ error: "Send { storyId, action: 'preview' | 'publish' }." }, { status: 400 });
     }
 
-    // RLS: only the author can load their story.
+    // RLS: only the author can load their story (and the plan behind it).
     const { data: story } = await ctx.supabase
       .from('success_stories')
-      .select('id, title, situation, solution, comment')
+      .select('id, title, situation, solution, comment, body, untangle_sessions(messages, plan)')
       .eq('id', storyId)
       .maybeSingle();
     if (!story) return Response.json({ error: 'Story not found.' }, { status: 404 });
@@ -52,12 +46,24 @@ export default {
     const llm = getLLM();
 
     if (action === 'preview') {
+      const draft = str(body?.draft, MAX_BODY) ?? story.body ?? '';
+      const session = story.untangle_sessions as unknown as {
+        messages: { role: string; content: string }[];
+        plan: { approach?: string; steps: { text: string; done: boolean }[] } | null;
+      } | null;
+      const userWords = (session?.messages ?? [])
+        .filter((m) => m.role === 'user')
+        .map((m) => m.content.trim())
+        .slice(-12);
       try {
         const review = await reviewStory(llm, {
           title: story.title,
-          situation: story.situation,
-          solution: story.solution,
-          comment: (typeof body.comment === 'string' ? body.comment : story.comment) ?? '',
+          draft: draft || undefined,
+          material: storyMaterial(
+            { title: story.title, situation: story.situation, solution: story.solution, comment: story.comment ?? '' },
+            session?.plan ?? null,
+            userWords,
+          ),
         });
         return Response.json({ review });
       } catch (err) {
@@ -66,14 +72,15 @@ export default {
       }
     }
 
-    const final = parseText(body);
-    if (!final) {
-      return Response.json({ error: 'Title, situation and what helped are required (max 1000 characters each).' }, { status: 400 });
+    const title = str(body?.title, MAX_TITLE);
+    const text = str(body?.body, MAX_BODY);
+    if (!title || !text) {
+      return Response.json({ error: `A title and your story are required (max ${MAX_BODY} characters).` }, { status: 400 });
     }
 
     let review;
     try {
-      review = await reviewStory(llm, final);
+      review = await reviewStory(llm, { title, draft: text });
     } catch (err) {
       console.error('Review failed:', err);
       return Response.json({ error: 'Could not check your story. Try again.' }, { status: 502 });
@@ -93,7 +100,7 @@ export default {
 
     try {
       const embedder = getEmbedder();
-      const [vector] = await embedder.embed([storyDocument(final)]);
+      const [vector] = await embedder.embed([storyDocument({ title, body: text })]);
       const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
         auth: { persistSession: false },
       });
@@ -101,10 +108,8 @@ export default {
         .from('success_stories')
         .update({
           status: 'published',
-          public_title: final.title,
-          public_situation: final.situation,
-          public_solution: final.solution,
-          public_comment: final.comment || null,
+          public_title: title,
+          public_body: text,
           published_at: new Date().toISOString(),
           embedding: JSON.stringify(vector),
         })
