@@ -5,13 +5,10 @@
 **[▶ Try the live demo](https://destress-ai.vercel.app)** · works in any browser, on desktop with a phone frame · "Load the demo" shows four weeks of the demo persona Jonas
 
 <p align="center">
-  <img src="docs/screenshots/phone/01-start.png" width="200" alt="Start screen">
-  &nbsp;
-  <img src="docs/screenshots/phone/02-today.png" width="200" alt="Today with Weekly Insights">
-  &nbsp;
-  <img src="docs/screenshots/phone/06-calendar-chart.png" width="200" alt="Calendar with the month chart">
-  &nbsp;
-  <img src="docs/screenshots/phone/07-untangle.png" width="200" alt="Untangle: Calm Now and Stress Solving">
+  <img src="docs/screenshots/phone/01-start.png" width="23%" alt="Start screen">
+  <img src="docs/screenshots/phone/02-today.png" width="23%" alt="Today with Weekly Insights">
+  <img src="docs/screenshots/phone/06-calendar-chart.png" width="23%" alt="Calendar with the month chart">
+  <img src="docs/screenshots/phone/07-untangle.png" width="23%" alt="Untangle: Calm Now and Stress Solving">
 </p>
 
 ---
