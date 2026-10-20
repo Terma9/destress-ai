@@ -46,10 +46,14 @@ Stress and mood trackers are popular in the app stores, but most of them are gen
 
 A warm 2-minute conversation, typed or spoken. Afterwards: stress, sleep and mood (0–10) with a reason each, to confirm or adjust. One entry per day, in a calendar.
 
-**Under the hood**
+<details>
+<summary><b>Under the hood</b></summary>
+
 - **Streamed replies** (`checkin-chat`). The system prompt is rebuilt on every turn from: the user's **memory profile** (a short text the AI rewrites after each check-in), the **last 3 check-ins** and **7 days of values**, the last 3 **reflection answers**, open **Stress Solving plans** to follow up on, this week's **question** from Weekly Insights, and up to **2 related past conversations** from RAG (the last message is embedded → vector search over topic chunks → the whole original conversations).
 - **Finishing** (`checkin-complete`): one structured-output call (strict JSON schema) returns title, summary, mood, stress/sleep/mood **with a reason each**, themes, a risk level, the **topics** for the RAG index, how open plans went, and the **updated memory**. The topics are embedded, then everything is saved in one database transaction.
 - **Voice:** speech-to-text; the audio is never stored.
+
+</details>
 
 </td>
 </tr>
@@ -61,11 +65,15 @@ A warm 2-minute conversation, typed or spoken. Afterwards: stress, sleep and moo
 
 Once a week: the week vs. the last, three patterns with numbers, what helped, a question for the week ahead. Every finding links to the days behind it.
 
-**Under the hood**
+<details>
+<summary><b>Under the hood</b></summary>
+
 - **Code first:** this week vs. last week (averages, changes) and recurring themes are computed in TypeScript, not by the model.
 - **One structured-output call** gets those numbers as facts, plus up to **40 recent entries labelled `E1 … E40`** and how Untangle plans worked out. It returns a one-sentence summary, 1–3 patterns whose findings must **cite at least 2 entries**, what worked, and a question for the week ahead.
 - **Validation in code:** labels are mapped back to real entry ids, unknown labels are dropped, and findings with fewer than 2 valid citations are removed. That's why every "Based on 5 of your entries" opens real days.
 - **When:** automatically on app open, at least 7 days after the last insights and with at least 3 new check-ins.
+
+</details>
 
 </td>
 </tr>
@@ -77,7 +85,9 @@ Once a week: the week vs. the last, three patterns with numbers, what helped, a 
 
 Stressed right now? A stress slider, a calming minute of guided breathing when it's high, then a short conversation with exercises that fit where you are. Before → after rating.
 
-**Under the hood**
+<details>
+<summary><b>Under the hood</b></summary>
+
 - **Guided breathing first** at stress 7 or higher; the app then sends `breathed: true`, so the model won't suggest breathing again.
 - **The system prompt is assembled for every message** from:
   - the stress level and what the user described,
@@ -89,6 +99,8 @@ Stressed right now? A stress slider, a calming minute of guided breathing when i
 - **Rules in the prompt:** every exercise must fit where the user is (in bed: eyes closed, no "look around"; at work: nothing visible; unclear: ask first), never repeat an exercise, at most 2 short sentences ending with a question or one small task.
 - **"I feel calmer"** saves the before → after rating, which feeds the next sessions.
 
+</details>
+
 </td>
 </tr>
 <tr>
@@ -99,11 +111,15 @@ Stressed right now? A stress slider, a calming minute of guided breathing when i
 
 For stress that keeps coming back: the AI asks until it understands, then makes a plan from your own check-ins. Give updates and the plan adapts; mark it solved to get a success story.
 
-**Under the hood**
+<details>
+<summary><b>Under the hood</b></summary>
+
 - **Same context as Calm Now** (memory, insight patterns, past sessions with their outcomes, RAG), but a different job: find out the trigger, what's in the user's control and what they already tried.
 - **Readiness signal:** the model appends a hidden `[[ready]]` once it knows enough (allowed after 2 answers, forced after 5). The app strips it and only then shows **Make my plan**.
 - **The plan** is one structured-output call: title, problem, an approach of at most 30 words based on one concrete thing from the user's history, 1–3 steps, what to watch for, and "what your past shows" lessons that **cite past check-ins** (`E1 …`, validated in code like the insights).
 - **A living plan:** updates continue the same thread with the current plan in the prompt; "Update my plan" saves a new version and keeps the old one in `plan_history`. Evening check-ins ask about open plans, and the extraction records how each one went.
+
+</details>
 
 </td>
 </tr>
@@ -115,10 +131,14 @@ For stress that keeps coming back: the AI asks until it understands, then makes 
 
 Short, anonymous stories from people who solved similar stress, matched to what you're dealing with. Share your own; comment.
 
-**Under the hood**
+<details>
+<summary><b>Under the hood</b></summary>
+
 - **Writing:** from a solved plan, one structured-output call drafts a short first-person post from the plan and the user's own words in the conversation. It returns `allowed`, `reason`, `crisis`, `personal_details` (what it removed, e.g. names or employers), `title` and `body`; the user edits the draft.
 - **Moderation:** the final text is reviewed again before publishing, and every comment gets the same check. Only the server can set a story to published.
 - **"For you":** each story is embedded; the feed ranks stories by cosine similarity to the **average of the reader's own check-in vectors**, inside a database function that never returns user ids.
+
+</details>
 
 </td>
 </tr>
