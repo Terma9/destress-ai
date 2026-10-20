@@ -12,7 +12,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace, type Trace } from '../_shared/tracing.ts';
+import { span, traced, type Trace } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
 import {
   buildCheckinSystemPrompt,
@@ -61,13 +61,12 @@ async function findRelated(
 }
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('checkin-chat', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('checkin-chat', req);
 
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
@@ -76,7 +75,7 @@ export default {
     }
 
     // Load the user's context. RLS guarantees these queries only see their rows.
-    const [profile, checkins, metrics, reflections, openPlans, weekly] = await Promise.all([
+    const [profile, checkins, metrics, reflections, openPlans, weekly] = await span('load-context', () => Promise.all([
       ctx.supabase.from('profiles').select('display_name, memory').maybeSingle(),
       ctx.supabase
         .from('checkins')
@@ -105,9 +104,19 @@ export default {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
-    ]);
+    ]), {
+      output: ([p, c, m, r, o]) => ({
+        memory_chars: p.data?.memory?.length ?? 0,
+        recent_checkins: c.data?.length ?? 0,
+        metric_days: m.data?.length ?? 0,
+        reflections: r.data?.length ?? 0,
+        open_plans: o.length,
+      }),
+    });
 
-    const related = await findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id), trace);
+    const related = await span('find-related', () => findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id), trace), {
+      output: (r) => r.map((c) => c.title),
+    });
 
     const system = buildCheckinSystemPrompt(
       {
@@ -159,5 +168,5 @@ export default {
     return new Response(stream, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
     });
-  }),
+    })),
 };

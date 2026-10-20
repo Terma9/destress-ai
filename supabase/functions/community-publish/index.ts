@@ -15,7 +15,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { indexExampleStories, reviewStory, storyDocument, storyMaterial } from '../_shared/community.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
@@ -26,13 +26,12 @@ const MAX_BODY = 4000;
 const str = (v: unknown, max: number) => (typeof v === 'string' && v.trim().length <= max ? v.trim() : null);
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('community-publish', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('community-publish', req);
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const storyId = typeof body?.storyId === 'string' ? body.storyId : null;
     const action = body?.action;
@@ -129,5 +128,5 @@ export default {
       return Response.json({ error: 'Could not publish your story. Try again.' }, { status: 500 });
     }
     return Response.json({ ok: true });
-  }),
+    })),
 };

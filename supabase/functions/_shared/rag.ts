@@ -11,6 +11,7 @@
  *            The chat then gets the whole conversation of those check-ins
  *            (the "big" part), which carries all the details.
  */
+import { span } from './tracing.ts';
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import type { ChatMessage, Embedder } from './llm/index.ts';
 
@@ -69,8 +70,13 @@ export function wholeChunk(c: { title: string | null; summary: string | null; me
 /** Embeds the chunks (one request) and stores them for the check-in. */
 export async function saveChunks(db: SupabaseClient, embedder: Embedder, checkinId: string, chunks: Chunk[]) {
   const vectors = await embedder.embed(chunks.map((c) => c.content));
-  const { error } = await db.from('checkin_chunks').insert(
-    chunks.map((c, i) => ({ ...c, checkin_id: checkinId, embedding: JSON.stringify(vectors[i]) })),
+  const { error } = await span(
+    'save-chunks',
+    async () =>
+      await db.from('checkin_chunks').insert(
+        chunks.map((c, i) => ({ ...c, checkin_id: checkinId, embedding: JSON.stringify(vectors[i]) })),
+      ),
+    { input: { chunks: chunks.map((c) => c.title ?? c.topic) } },
   );
   if (error) throw error;
 }
@@ -80,7 +86,11 @@ export async function saveChunks(db: SupabaseClient, embedder: Embedder, checkin
  * where indexing failed) as one whole-check-in chunk each. Safe to call
  * often: once everything is indexed it's a single cheap query.
  */
-export async function indexMissing(db: SupabaseClient, embedder: Embedder, limit = 50): Promise<number> {
+export function indexMissing(db: SupabaseClient, embedder: Embedder, limit = 50): Promise<number> {
+  return span('index-missing', () => indexMissingSteps(db, embedder, limit), { output: (indexed) => ({ indexed }) });
+}
+
+async function indexMissingSteps(db: SupabaseClient, embedder: Embedder, limit: number): Promise<number> {
   const { data, error } = await db
     .from('checkins')
     .select('id, title, summary, messages, checkin_chunks(id)')
@@ -108,10 +118,19 @@ export async function searchCheckins(
   count = 5,
 ): Promise<Match[]> {
   const [vector] = await embedder.embed([query]);
-  const { data, error } = await db.rpc('match_chunks', {
-    query_embedding: JSON.stringify(vector),
-    match_count: count * 4, // several chunks can belong to the same check-in
-  });
+  const { data, error } = await span(
+    'match-chunks',
+    async () =>
+      await db.rpc('match_chunks', {
+        query_embedding: JSON.stringify(vector),
+        match_count: count * 4, // several chunks can belong to the same check-in
+      }),
+    {
+      input: { query },
+      output: (r) =>
+        ((r.data ?? []) as Match[]).map((m) => ({ title: m.topic_title ?? m.title, similarity: Math.round(m.similarity * 100) / 100 })),
+    },
+  );
   if (error) throw error;
 
   const best = new Map<string, Match>();
@@ -145,10 +164,15 @@ export async function relatedConversations(
     .slice(0, max);
   if (!matches.length) return [];
 
-  const { data, error } = await db
-    .from('checkins')
-    .select('id, messages')
-    .in('id', matches.map((m) => m.checkin_id));
+  const { data, error } = await span(
+    'load-conversations',
+    async () =>
+      await db
+        .from('checkins')
+        .select('id, messages')
+        .in('id', matches.map((m) => m.checkin_id)),
+    { output: (r) => ({ conversations: r.data?.length ?? 0 }) },
+  );
   if (error) throw error;
   const messagesById = new Map((data ?? []).map((c) => [c.id as string, c.messages as ChatMessage[]]));
 

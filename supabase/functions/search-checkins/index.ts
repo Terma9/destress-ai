@@ -10,18 +10,17 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import { getEmbedder } from '../_shared/llm/index.ts';
 import { indexMissing, searchCheckins } from '../_shared/rag.ts';
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('search-checkins', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('search-checkins', req);
     const body = await req.json().catch(() => null);
     const query = typeof body?.query === 'string' ? body.query.trim() : '';
     if (!query || query.length > 300) {
@@ -38,5 +37,5 @@ export default {
       console.error('Search failed:', err);
       return Response.json({ error: 'Search failed. Try again.' }, { status: 502 });
     }
-  }),
+    })),
 };

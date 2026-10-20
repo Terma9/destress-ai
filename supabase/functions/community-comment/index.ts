@@ -12,7 +12,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { reviewComment } from '../_shared/community.ts';
 import { getLLM } from '../_shared/llm/index.ts';
@@ -20,13 +20,12 @@ import { getLLM } from '../_shared/llm/index.ts';
 const MAX_COMMENT = 1000;
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('community-comment', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('community-comment', req);
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const storyId = typeof body?.storyId === 'string' ? body.storyId : null;
     const text = typeof body?.text === 'string' ? body.text.trim() : '';
@@ -65,5 +64,5 @@ export default {
       return Response.json({ error: 'Could not post your comment. Try again.' }, { status: 500 });
     }
     return Response.json({ comment: { ...data, is_mine: true, is_example: false } });
-  }),
+    })),
 };

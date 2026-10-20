@@ -10,13 +10,13 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 import { buildCalmPrompt, buildUntangleChatPrompt, loadPlanSession, loadUntangleContext, PROMPT_VERSION } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseIntensity, parseMessages } from '../_shared/validation.ts';
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('untangle-chat', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
@@ -34,16 +34,18 @@ export default {
 
     const calm = (body as { mode?: unknown })?.mode === 'calm';
     // Calm Now and Stress Solving share this function; in Langfuse they are two features.
-    const trace = startTrace(calm ? 'calm-now' : 'stress-solving', req, { prompt_version: PROMPT_VERSION });
+    trace.setName(calm ? 'calm-now' : 'stress-solving');
 
     let system: string;
     let llm;
     try {
-      const context = await loadUntangleContext(ctx.supabase, getEmbedder(trace), messages);
+      const context = await span('load-context', () => loadUntangleContext(ctx.supabase, getEmbedder(trace), messages), {
+        output: (c) => ({ related: c.related.length, past_sessions: c.pastSessions.length, active_plans: c.activePlans.length }),
+      });
       if (calm) {
         system = buildCalmPrompt(context, intensity, (body as { breathed?: unknown }).breathed === true);
       } else {
-        const session = await loadPlanSession(ctx.supabase, body);
+        const session = await span('load-plan', () => loadPlanSession(ctx.supabase, body));
         const answered = messages.filter((m) => m.role === 'user').length - 1;
         system = buildUntangleChatPrompt(context, intensity, answered, session?.plan ?? null);
       }
@@ -71,5 +73,5 @@ export default {
     return new Response(stream, {
       headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-cache' },
     });
-  }),
+    }, { prompt_version: PROMPT_VERSION })),
 };

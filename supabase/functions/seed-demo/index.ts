@@ -12,7 +12,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { indexExampleStories, storyDocument } from '../_shared/community.ts';
 import * as demo from '../_shared/fixtures/demo-jonas.ts';
@@ -40,13 +40,12 @@ function dater(today: string) {
 }
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('seed-demo', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('seed-demo', req);
     const today = parseDay(await req.json().catch(() => null)) ?? toDay(new Date());
     const at = dater(today);
     const db = ctx.supabase;
@@ -280,5 +279,5 @@ export default {
     }
 
     return Response.json({ inserted: inserted.length });
-  }),
+    })),
 };

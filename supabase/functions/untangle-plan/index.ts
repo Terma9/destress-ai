@@ -10,7 +10,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 import {
   buildPlanPrompt,
@@ -25,13 +25,12 @@ import { formatTranscript } from '../_shared/extraction.ts';
 import { INVALID_MESSAGES_ERROR, parseIntensity, parseMessages } from '../_shared/validation.ts';
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('untangle-plan', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('untangle-plan', req, { prompt_version: PROMPT_VERSION });
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
     const intensity = parseIntensity(body);
@@ -48,8 +47,8 @@ export default {
     let session: Awaited<ReturnType<typeof loadPlanSession>> = null;
     try {
       [context, session] = await Promise.all([
-        loadUntangleContext(db, getEmbedder(trace), messages),
-        loadPlanSession(db, body),
+        span('load-context', () => loadUntangleContext(db, getEmbedder(trace), messages)),
+        span('load-plan', () => loadPlanSession(db, body)),
       ]);
       output = await getLLM(trace).generateJson<PlanOutput>({
         task: 'analysis',
@@ -106,5 +105,5 @@ export default {
       return Response.json({ error: 'Could not save the plan.' }, { status: 500 });
     }
     return Response.json({ id: data.id });
-  }),
+    }, { prompt_version: PROMPT_VERSION })),
 };

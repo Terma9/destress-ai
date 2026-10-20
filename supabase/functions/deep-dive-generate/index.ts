@@ -13,7 +13,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { span, traced } from '../_shared/tracing.ts';
 import {
   ANALYSIS_SCHEMA,
   type AnalysisOutput,
@@ -48,13 +48,12 @@ function userWords(messages: ChatMessage[]): string {
 }
 
 export default {
-  fetch: withSupabase({ auth: 'user' }, async (req, ctx) => {
+  fetch: withSupabase({ auth: 'user' }, traced('deep-dive-generate', async (req, ctx, trace) => {
     if (req.method !== 'POST') {
       return Response.json({ error: 'Use POST.' }, { status: 405 });
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
-    const trace = startTrace('deep-dive-generate', req, { prompt_version: PROMPT_VERSION });
     const body = await req.json().catch(() => null);
     const language = parseLanguage(body);
     const today = parseToday(body);
@@ -176,5 +175,5 @@ export default {
     }
 
     return Response.json({ analysisId: analysis.id });
-  }),
+    }, { prompt_version: PROMPT_VERSION })),
 };
