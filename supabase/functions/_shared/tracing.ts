@@ -106,7 +106,8 @@ export function traced<C>(
 ): (req: Request, ctx: C) => Promise<Response> {
   return async (req, ctx) => {
     const config = langfuseConfig();
-    if (!config) return handler(req, ctx, { id: randomHex(16), record: () => {}, setName: () => {} });
+    // Only real requests are traced: no keys, or a warm-up ping (GET), means no trace.
+    if (!config || req.method !== 'POST') return handler(req, ctx, { id: randomHex(16), record: () => {}, setName: () => {} });
 
     const trace = new TraceState(config, name, req, metadata);
     const requestInput = (req.headers.get('Content-Type') ?? '').includes('json')

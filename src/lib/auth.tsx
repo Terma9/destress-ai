@@ -11,6 +11,7 @@ import { createContext, type ReactNode, useCallback, useContext, useEffect, useS
 import { AppState, Platform } from 'react-native';
 import { useAppStore } from '@/store/useAppStore';
 import { supabase } from './supabase';
+import { warmUpFunctions } from './warmup';
 
 type AuthState =
   | { status: 'loading' }
@@ -47,6 +48,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return () => listener.subscription.unsubscribe();
   }, [signIn]);
+
+  // Start the backend functions in the background, so the first use of each feature is fast.
+  useEffect(() => {
+    if (session) warmUpFunctions(session.access_token);
+  }, [session]);
 
   // Phones pause timers in the background, so only refresh tokens while the app is open.
   useEffect(() => {
