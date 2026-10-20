@@ -67,20 +67,6 @@ export function wholeChunk(c: { title: string | null; summary: string | null; me
   return { topic: 'all', title: c.title ?? 'Check-in', summary, content: content.slice(0, 6000) };
 }
 
-/** Embeds the chunks (one request) and stores them for the check-in. */
-export async function saveChunks(db: SupabaseClient, embedder: Embedder, checkinId: string, chunks: Chunk[]) {
-  const vectors = await embedder.embed(chunks.map((c) => c.content));
-  const { error } = await span(
-    'save-chunks',
-    async () =>
-      await db.from('checkin_chunks').insert(
-        chunks.map((c, i) => ({ ...c, checkin_id: checkinId, embedding: JSON.stringify(vectors[i]) })),
-      ),
-    { input: { chunks: chunks.map((c) => c.title ?? c.topic) } },
-  );
-  if (error) throw error;
-}
-
 /**
  * Indexes check-ins that have no chunks yet (older entries, demo data, or
  * where indexing failed) as one whole-check-in chunk each. Safe to call

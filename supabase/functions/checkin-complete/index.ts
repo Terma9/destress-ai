@@ -10,16 +10,18 @@
  * check-in to continue), the whole conversation is analyzed again and that
  * day's entry is updated instead of creating a second one.
  *
- * Steps: AI extracts structured data → save check-in → update today's
- * tracker values → save the updated memory → split into topic chunks for
- * RAG search → record how open Untangle plans turned out.
+ * Steps: AI extracts structured data → split into topic chunks and embed
+ * them for RAG search → match outcomes of open Untangle plans → save it all
+ * in ONE transaction (save_checkin: entry, today's tracker values, memory,
+ * chunks, plan outcomes). AI work happens before the transaction, so a slow
+ * or failed AI call never leaves a half-saved check-in.
  * Runs as the calling user (RLS).
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
 import { span, traced } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
-import { saveChunks, topicChunks } from '../_shared/rag.ts';
+import { type Chunk, topicChunks } from '../_shared/rag.ts';
 import {
   buildExtractionSystemPrompt,
   CHECKIN_SCHEMA,
@@ -27,7 +29,7 @@ import {
   formatTranscript,
   sanitize,
 } from '../_shared/extraction.ts';
-import { fetchOpenPlans, type OpenPlan, recordPlanOutcomes } from '../_shared/untangle.ts';
+import { fetchOpenPlans, type OpenPlan, planOutcomeUpdates } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseDay, parseMessages } from '../_shared/validation.ts';
 
 export default {
@@ -79,98 +81,46 @@ export default {
       return Response.json({ error: 'The AI could not summarize this check-in. Try again.' }, { status: 502 });
     }
 
-    // 2. Save the check-in: update today's entry if there is one, otherwise create it.
     const { memory, topics, plan_outcomes, reasons, ...record } = extraction;
-    const { data: existingEntry } = await span('find-today-entry', async () =>
-      await db
-        .from('checkins')
-        .select('id')
-        .eq('day', day)
-        .not('completed_at', 'is', null)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
-    );
-    const row = { ...record, score_reasons: reasons, messages, day, completed_at: new Date().toISOString() };
-    const columns =
-      'id, created_at, day, title, summary, mood, stress, emotion, sleep, themes, helped, follow_ups, risk_level, score_reasons';
-    const { data: checkin, error: checkinError } = await span(
+
+    // 2. Embed the topics for RAG search, before saving: AI calls stay outside
+    //    the transaction. If this fails, the entry is saved without chunks and
+    //    indexMissing() adds a whole-check-in chunk later.
+    const chunks = topicChunks({ ...record, messages }, topics);
+    let indexed: (Chunk & { embedding: string })[] = [];
+    try {
+      const vectors = await getEmbedder(trace).embed(chunks.map((c) => c.content));
+      indexed = chunks.map((c, i) => ({ ...c, embedding: JSON.stringify(vectors[i]) }));
+    } catch (err) {
+      console.error('Embedding the check-in failed, saving without search index:', err);
+    }
+
+    // 3. How open Untangle plans turned out, matched to their ids.
+    const outcomes = planOutcomeUpdates(planRefs, plan_outcomes);
+
+    // 4. Save everything in one transaction (save_checkin): the entry, the
+    //    day's values, the memory, the RAG chunks and the plan outcomes.
+    //    Either all of it is saved, or nothing is.
+    const { data: saved, error: saveError } = await span(
       'save-checkin',
       async () =>
-        existingEntry
-          ? await db.from('checkins').update(row).eq('id', existingEntry.id).select(columns).single()
-          : await db.from('checkins').insert(row).select(columns).single(),
-      { input: { mode: existingEntry ? 'update' : 'insert' } },
+        await db.rpc('save_checkin', {
+          p_day: day,
+          p_checkin: { ...record, score_reasons: reasons, messages },
+          p_memory: memory,
+          p_chunks: indexed,
+          p_outcomes: outcomes.map(({ id, outcome, outcome_note, intensity_after }) => ({ id, outcome, outcome_note, intensity_after })),
+        }),
+      { input: { chunks: indexed.length, plan_outcomes: outcomes.length } },
     );
-    if (checkinError) {
-      console.error('Saving check-in failed:', checkinError);
+    if (saveError || !saved) {
+      console.error('Saving check-in failed:', saveError);
       return Response.json({ error: 'Could not save the check-in.' }, { status: 500 });
     }
-
-    // 3. Update today's tracker values. Values the user set by hand win;
-    //    scores the conversation didn't cover keep their previous value.
-    const { data: existing } = await span('load-metrics', async () =>
-      await db
-        .from('daily_metrics')
-        .select('stress, emotion, sleep, source')
-        .eq('day', day)
-        .maybeSingle(),
-    );
-
-    let metrics = existing;
-    const hasScores = record.stress !== null || record.emotion !== null || record.sleep !== null;
-    if (existing?.source !== 'manual' && hasScores) {
-      const { data, error } = await span('save-metrics', async () => await db
-        .from('daily_metrics')
-        .upsert(
-          {
-            day,
-            stress: record.stress ?? existing?.stress ?? null,
-            emotion: record.emotion ?? existing?.emotion ?? null,
-            sleep: record.sleep ?? existing?.sleep ?? null,
-            source: 'ai',
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,day' },
-        )
-        .select('day, stress, emotion, sleep, source')
-        .single());
-      if (error) console.error('Updating daily metrics failed:', error);
-      else metrics = data;
-    }
-
-    // 4. Save the updated memory for the next check-in.
-    const { error: memoryError } = await span('save-memory', async () =>
-      await db
-        .from('profiles')
-        .update({ memory, updated_at: new Date().toISOString() })
-        .eq('id', ctx.userClaims!.id),
-    );
-    if (memoryError) console.error('Updating memory failed:', memoryError);
-
-    // 5. Index the check-in for RAG search: one chunk per topic. If this
-    //    fails, indexMissing() later adds a whole-check-in chunk instead.
-    //    A continued entry replaces its old chunks, since the topics may have changed.
-    try {
-      await span('index-checkin', async () => {
-        if (existingEntry) await db.from('checkin_chunks').delete().eq('checkin_id', checkin.id);
-        await saveChunks(db, getEmbedder(trace), checkin.id, topicChunks({ ...record, messages }, topics));
-      });
-    } catch (err) {
-      console.error('Indexing check-in failed:', err);
-    }
-
-    // 6. Untangle follow-up: save how open plans turned out; plans that
-    //    worked become private success stories the user can review.
-    let successes: { id: string; title: string }[] = [];
-    try {
-      successes = await span('plan-outcomes', () => recordPlanOutcomes(db, planRefs, plan_outcomes), {
-        input: { open_plans: planRefs.length },
-      });
-    } catch (err) {
-      console.error('Recording plan outcomes failed:', err);
-    }
+    const { checkin, metrics } = saved as { checkin: Record<string, unknown>; metrics: Record<string, unknown> | null };
+    // Plans that worked: the app suggests marking them solved.
+    const successes = outcomes.filter((o) => o.outcome === 'worked').map(({ id, title }) => ({ id, title }));
 
     return Response.json({ checkin, metrics, successes });
-    })),
+  })),
 };

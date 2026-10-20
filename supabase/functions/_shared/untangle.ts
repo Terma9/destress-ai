@@ -333,37 +333,22 @@ export async function fetchOpenPlans(db: SupabaseClient): Promise<OpenPlan[]> {
 }
 
 /**
- * Saves how active plans are going (from the check-in extraction). Returns
- * the plans that worked, so the check-in can suggest marking them solved;
- * the success story is only created when the user marks a plan solved.
+ * Matches the check-in's plan outcomes ("P1", "P2", …) to the open plans.
+ * save_checkin writes them in the same transaction as the check-in. Plans
+ * that worked are shown so the user can mark them solved; the success story
+ * is only created then.
  */
-export async function recordPlanOutcomes(
-  db: SupabaseClient,
+export function planOutcomeUpdates(
   plans: (OpenPlan & { ref: string })[],
   outcomes: { plan: string; outcome: string; what_helped: string; theme: string; intensity_after: number | null }[],
-): Promise<{ id: string; title: string }[]> {
+): { id: string; title: string; outcome: string; outcome_note: string | null; intensity_after: number | null }[] {
   const byRef = new Map(plans.map((p) => [p.ref.toUpperCase(), p]));
-  const successes: { id: string; title: string }[] = [];
-
-  for (const o of outcomes) {
+  return outcomes.flatMap((o) => {
     const plan = byRef.get(o.plan.trim().toUpperCase());
-    if (!plan || o.outcome === 'not_discussed') continue;
-
-    const { error } = await db
-      .from('untangle_sessions')
-      .update({
-        outcome: o.outcome,
-        outcome_note: o.what_helped.trim() || null,
-        outcome_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // How much it weighs on them now comes from the check-in.
-        ...(o.intensity_after !== null ? { intensity_after: o.intensity_after } : {}),
-      })
-      .eq('id', plan.id);
-    if (error) throw error;
-    if (o.outcome === 'worked') successes.push({ id: plan.id, title: plan.title });
-  }
-  return successes;
+    if (!plan || o.outcome === 'not_discussed') return [];
+    // How much it weighs on them now comes from the check-in.
+    return [{ id: plan.id, title: plan.title, outcome: o.outcome, outcome_note: o.what_helped.trim() || null, intensity_after: o.intensity_after }];
+  });
 }
 
 /**
