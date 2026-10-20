@@ -12,9 +12,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="untangle" options={{ title: 'Untangle' }} />
       <Tabs.Screen name="community" options={{ title: 'Community' }} />
       {/* Reachable from other screens, but not in the tab bar. Exercises and Knowledge are set aside for now. */}
-      <Tabs.Screen name="diary" options={{ href: null }} />
-      <Tabs.Screen name="tracker" options={{ href: null }} />
-      <Tabs.Screen name="practice" options={{ href: null }} />
     </Tabs>
   );
 }

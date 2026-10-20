@@ -46,3 +46,8 @@ example
 # Vercel project link for the web demo (copied into dist/ on build)
 .vercel-web/
 .env*.local
+
+# Local AI coding-agent and tool settings (kept on the machine, not in the repo)
+CLAUDE.md
+AGENTS.md
+.claude/

@@ -164,7 +164,7 @@ The short version; each with the full story in [docs/lessons-learned.md](docs/le
 
 ## How it was built
 
-I designed Destress AI and built it in October 2026, starting from my own concept and mockups. I made the product, UX and architecture decisions (for example the topic-chunk RAG design, the Untangle and community concepts, and the demo persona) and wrote the implementation together with **Claude Code** (Anthropic's coding agent) as a pair programmer: I directed each step, reviewed the code, tested it in the browser and on my phone, and iterated on the details. I can explain every part of it, and the [decisions](docs/decisions.md) and [lessons](docs/lessons-learned.md) are written down so that's easy to check.
+I designed Destress AI starting from my own concept and mockups. The project was set up in July 2026; the main build followed in October 2026. I made the product, UX and architecture decisions (for example the topic-chunk RAG design, the Untangle and community concepts, and the demo persona) and wrote the implementation together with **Claude Code** (Anthropic's coding agent) as a pair programmer: I directed each step, reviewed the code, tested it in the browser and on my phone, and iterated on the details. I can explain every part of it, and the [decisions](docs/decisions.md) and [lessons](docs/lessons-learned.md) are written down so that's easy to check.
 
 ## Tech stack and running it
 

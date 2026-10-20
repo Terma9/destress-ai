@@ -63,9 +63,6 @@ export default function RootLayout() {
               <Stack.Screen name="untangle/[id]" />
               <Stack.Screen name="success/[id]" />
               <Stack.Screen name="deep-dives" />
-              <Stack.Screen name="knowledge" />
-              <Stack.Screen name="exercise/[id]" />
-              <Stack.Screen name="article/[id]" />
               <Stack.Screen name="deep-dive/[id]" />
               <Stack.Screen name="entry/[id]" />
               <Stack.Screen name="search" />

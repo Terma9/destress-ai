@@ -105,6 +105,10 @@ export function traced<C>(
   metadata: Metadata = {},
 ): (req: Request, ctx: C) => Promise<Response> {
   return async (req, ctx) => {
+    // Warm-up ping from the app (src/lib/warmup.ts): the function is now
+    // running, nothing else to do. 204 instead of the handler's 405, so
+    // browsers don't log it as an error.
+    if (req.method === 'GET') return new Response(null, { status: 204 });
     const config = langfuseConfig();
     // Only real requests are traced: no keys, or a warm-up ping (GET), means no trace.
     if (!config || req.method !== 'POST') return handler(req, ctx, { id: randomHex(16), record: () => {}, setName: () => {} });

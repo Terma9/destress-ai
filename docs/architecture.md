@@ -296,7 +296,7 @@ Why not one vector per check-in, or per message: see [lessons](lessons-learned.m
 - **Fails open:** without keys, or when Langfuse is slow or down (5 s timeout), tracing is skipped and the request works as before. GET requests (warm-up pings) aren't traced.
 - **Privacy:** for real users, every input and output is replaced by its shape and size (`[masked: 412 chars]`) before it leaves the server; numbers stay. Demo accounts are sent in full.
 
-**Warm-up:** on app start, `src/lib/warmup.ts` sends a GET to each function. Functions answer 405 before any quota check or AI call, but the request starts the function, so the first real use skips the cold start.
+**Warm-up:** on app start, `src/lib/warmup.ts` sends a GET to each function. `traced()` answers it right away with 204, before any quota check or AI call, but the request starts the function, so the first real use skips most of the cold start.
 
 ---
 

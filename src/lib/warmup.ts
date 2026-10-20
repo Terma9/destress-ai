@@ -6,8 +6,8 @@
  * can take seconds. A cheap GET request now starts them in the background,
  * so the first real use of each feature is fast.
  *
- * Free and harmless: every function answers GET with 405 before the quota
- * check and before any AI call, and GET requests aren't traced. The login
+ * Free and harmless: every function answers GET with 204 right away (in
+ * traced(), _shared/tracing.ts), before the quota check and any AI call. The login
  * token is sent because Supabase's gateway rejects requests without one
  * before the function starts.
  */
