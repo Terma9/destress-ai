@@ -248,7 +248,6 @@ The short version; each with the full story in [docs/lessons-learned.md](docs/le
 
 - **Quality scores in Langfuse** from real use: Calm Now stress drop, how often users correct the AI's values.
 - **Evals:** a small dataset (crisis, Calm Now rules, extraction) run against each prompt change, with rule checks and an LLM judge.
-- **Faster check-in save:** saving takes ~18 s, mostly one structured-output call; candidates are a faster extraction model and moving memory/indexing to the background.
 - **Real accounts:** upgrade anonymous accounts to email or Apple/Google sign-in without losing data.
 
 ## How it was built
