@@ -17,6 +17,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 import { saveChunks, topicChunks } from '../_shared/rag.ts';
 import {
@@ -36,6 +37,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('checkin-complete', req);
 
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
@@ -60,7 +62,7 @@ export default {
     // 1. Ask the AI for the structured record + updated memory.
     let extraction: CheckinExtraction;
     try {
-      const raw = await getLLM().generateJson<CheckinExtraction>({
+      const raw = await getLLM(trace).generateJson<CheckinExtraction>({
         task: 'extract',
         system: buildExtractionSystemPrompt({
           name: profile?.display_name ?? null,
@@ -141,7 +143,7 @@ export default {
     //    A continued entry replaces its old chunks, since the topics may have changed.
     try {
       if (existingEntry) await db.from('checkin_chunks').delete().eq('checkin_id', checkin.id);
-      await saveChunks(db, getEmbedder(), checkin.id, topicChunks({ ...record, messages }, topics));
+      await saveChunks(db, getEmbedder(trace), checkin.id, topicChunks({ ...record, messages }, topics));
     } catch (err) {
       console.error('Indexing check-in failed:', err);
     }

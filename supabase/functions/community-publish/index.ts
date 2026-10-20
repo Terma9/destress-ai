@@ -15,6 +15,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { indexExampleStories, reviewStory, storyDocument, storyMaterial } from '../_shared/community.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
@@ -31,6 +32,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('community-publish', req);
     const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
     const storyId = typeof body?.storyId === 'string' ? body.storyId : null;
     const action = body?.action;
@@ -46,7 +48,7 @@ export default {
       .maybeSingle();
     if (!story) return Response.json({ error: 'Story not found.' }, { status: 404 });
 
-    const llm = getLLM();
+    const llm = getLLM(trace);
 
     if (action === 'preview') {
       const draft = str(body?.draft, MAX_BODY) ?? story.body ?? '';
@@ -102,7 +104,7 @@ export default {
     }
 
     try {
-      const embedder = getEmbedder();
+      const embedder = getEmbedder(trace);
       const [vector] = await embedder.embed([storyDocument({ title, body: text })]);
       const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
         auth: { persistSession: false },

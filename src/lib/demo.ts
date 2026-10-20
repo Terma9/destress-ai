@@ -17,5 +17,7 @@ export async function startDemo(): Promise<void> {
     if (signInError) throw new Error(signInError.message);
   }
   await loadDemoData();
+  // The server marked this account as a demo account; a fresh login token carries that mark.
+  await supabase.auth.refreshSession();
   useAppStore.setState({ name: 'Jonas', demo: true, onboarded: true, activityDates: [] });
 }

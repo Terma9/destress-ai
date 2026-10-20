@@ -12,6 +12,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { indexExampleStories, storyDocument } from '../_shared/community.ts';
 import * as demo from '../_shared/fixtures/demo-jonas.ts';
@@ -45,6 +46,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('seed-demo', req);
     const today = parseDay(await req.json().catch(() => null)) ?? toDay(new Date());
     const at = dater(today);
     const db = ctx.supabase;
@@ -106,6 +108,14 @@ export default {
       .from('profiles')
       .update({ display_name: demo.name, memory: demo.memory, updated_at: new Date().toISOString() })
       .eq('id', userId);
+
+    // Mark the account as a demo account. app_metadata can only be set with the
+    // service role and travels in the user's login token, so tracing can trust
+    // it: demo traces (fictional Jonas) are sent to Langfuse unmasked.
+    const { error: flagError } = await createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+      auth: { persistSession: false },
+    }).auth.admin.updateUserById(userId, { app_metadata: { demo: true } });
+    if (flagError) console.error('Marking the demo account failed:', flagError);
 
     // ─── Weekly Insights from the end of week 4 (fixed, so they stay simple) ─────────────────────────
     const avg = (xs: number[]) => (xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10 : null);
@@ -211,7 +221,7 @@ export default {
     // Publishing needs the service role (users can't set published themselves).
     const sleepSession = sessions?.find((s) => s.title === sleep.title);
     try {
-      const embedder = getEmbedder();
+      const embedder = getEmbedder(trace);
       const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
         auth: { persistSession: false },
       });
@@ -262,7 +272,7 @@ export default {
 
     // Make the check-ins searchable by meaning right away (RAG), and the example stories matchable.
     try {
-      const embedder = getEmbedder();
+      const embedder = getEmbedder(trace);
       await indexMissing(db, embedder);
       await indexExampleStories(db, embedder);
     } catch (err) {

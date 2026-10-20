@@ -10,6 +10,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
 import {
   buildPlanPrompt,
@@ -17,6 +18,7 @@ import {
   loadUntangleContext,
   PLAN_SCHEMA,
   type PlanOutput,
+  PROMPT_VERSION,
   validatePlan,
 } from '../_shared/untangle.ts';
 import { formatTranscript } from '../_shared/extraction.ts';
@@ -29,6 +31,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('untangle-plan', req, { prompt_version: PROMPT_VERSION });
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
     const intensity = parseIntensity(body);
@@ -45,10 +48,10 @@ export default {
     let session: Awaited<ReturnType<typeof loadPlanSession>> = null;
     try {
       [context, session] = await Promise.all([
-        loadUntangleContext(db, getEmbedder(), messages),
+        loadUntangleContext(db, getEmbedder(trace), messages),
         loadPlanSession(db, body),
       ]);
-      output = await getLLM().generateJson<PlanOutput>({
+      output = await getLLM(trace).generateJson<PlanOutput>({
         task: 'analysis',
         system: buildPlanPrompt(context, intensity, session?.plan ?? null),
         messages: formatTranscript(messages),

@@ -10,8 +10,9 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM } from '../_shared/llm/index.ts';
-import { buildCalmPrompt, buildUntangleChatPrompt, loadPlanSession, loadUntangleContext } from '../_shared/untangle.ts';
+import { buildCalmPrompt, buildUntangleChatPrompt, loadPlanSession, loadUntangleContext, PROMPT_VERSION } from '../_shared/untangle.ts';
 import { INVALID_MESSAGES_ERROR, parseIntensity, parseMessages } from '../_shared/validation.ts';
 
 export default {
@@ -31,18 +32,22 @@ export default {
       );
     }
 
+    const calm = (body as { mode?: unknown })?.mode === 'calm';
+    // Calm Now and Stress Solving share this function; in Langfuse they are two features.
+    const trace = startTrace(calm ? 'calm-now' : 'stress-solving', req, { prompt_version: PROMPT_VERSION });
+
     let system: string;
     let llm;
     try {
-      const context = await loadUntangleContext(ctx.supabase, getEmbedder(), messages);
-      if ((body as { mode?: unknown })?.mode === 'calm') {
+      const context = await loadUntangleContext(ctx.supabase, getEmbedder(trace), messages);
+      if (calm) {
         system = buildCalmPrompt(context, intensity, (body as { breathed?: unknown }).breathed === true);
       } else {
         const session = await loadPlanSession(ctx.supabase, body);
         const answered = messages.filter((m) => m.role === 'user').length - 1;
         system = buildUntangleChatPrompt(context, intensity, answered, session?.plan ?? null);
       }
-      llm = getLLM();
+      llm = getLLM(trace);
     } catch (err) {
       console.error('Preparing Untangle chat failed:', err);
       return Response.json({ error: 'Could not start the conversation. Try again.' }, { status: 500 });

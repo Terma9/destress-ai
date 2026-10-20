@@ -10,6 +10,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { getEmbedder } from '../_shared/llm/index.ts';
 import { indexMissing, searchCheckins } from '../_shared/rag.ts';
 
@@ -20,6 +21,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('search-checkins', req);
     const body = await req.json().catch(() => null);
     const query = typeof body?.query === 'string' ? body.query.trim() : '';
     if (!query || query.length > 300) {
@@ -27,7 +29,7 @@ export default {
     }
 
     try {
-      const embedder = getEmbedder();
+      const embedder = getEmbedder(trace);
       await indexMissing(ctx.supabase, embedder);
       const matches = await searchCheckins(ctx.supabase, embedder, query);
       const results = matches.map(({ checkin_id, ...m }) => ({ id: checkin_id, ...m }));

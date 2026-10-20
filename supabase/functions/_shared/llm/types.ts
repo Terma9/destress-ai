@@ -59,3 +59,27 @@ export interface Embedder {
   /** One vector per input text, in the same order. */
   embed(texts: string[]): Promise<number[][]>;
 }
+
+/**
+ * One finished AI call, as the adapters report it for tracing: what went in,
+ * what came out, how many tokens it used and how long it took. Adapters fill
+ * it in; what happens with it (e.g. sending it to Langfuse) is not their concern.
+ */
+export type AICall = {
+  /** What the call was, e.g. "chat", "json:plan", "embed", "transcribe". */
+  name: string;
+  kind: 'generation' | 'embedding';
+  model: string;
+  input: unknown;
+  output: unknown;
+  /** Token counts by type, e.g. { input: 812, output: 64 }. */
+  usage?: Record<string, number>;
+  startTime: Date;
+  endTime: Date;
+  /** Set when the call failed. */
+  error?: string;
+  metadata?: Record<string, string | number | boolean>;
+};
+
+/** Receives each finished AI call. Optional everywhere: without it, nothing is recorded. */
+export type RecordCall = (call: AICall) => void;

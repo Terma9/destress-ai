@@ -10,6 +10,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { getTranscriber } from '../_shared/llm/index.ts';
 
 /** ~2 minutes of compressed speech is around 1–2 MB; the API itself allows 25 MB. */
@@ -22,6 +23,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('transcribe', req);
 
     const mimeType = req.headers.get('content-type') ?? '';
     if (!mimeType.startsWith('audio/')) {
@@ -40,7 +42,7 @@ export default {
     const language = lang && /^[a-z]{2}$/i.test(lang) ? lang.toLowerCase() : undefined;
 
     try {
-      const text = await getTranscriber().transcribe({ audio, mimeType, language });
+      const text = await getTranscriber(trace).transcribe({ audio, mimeType, language });
       return Response.json({ text });
     } catch (err) {
       console.error('Transcription failed:', err);

@@ -13,6 +13,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import {
   ANALYSIS_SCHEMA,
   type AnalysisOutput,
@@ -53,6 +54,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('deep-dive-generate', req, { prompt_version: PROMPT_VERSION });
     const body = await req.json().catch(() => null);
     const language = parseLanguage(body);
     const today = parseToday(body);
@@ -120,7 +122,7 @@ export default {
     const week = computeWeek(entries, today);
     const outcomes = (plans ?? []).map((p) => ({ title: p.title, outcome: p.outcome, note: p.outcome_note }));
 
-    const llm = getLLM();
+    const llm = getLLM(trace);
     let result: ReturnType<typeof validateAnalysis>;
     try {
       const output = await llm.generateJson<AnalysisOutput>({

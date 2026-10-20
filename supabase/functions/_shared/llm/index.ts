@@ -13,11 +13,16 @@
  *   EMBED_MODEL          embedding model; its vector size must match the
  *                        database column (1536 for text-embedding-3-small)
  *   OPENAI_API_KEY       required whenever a provider is openai
+ *
+ * Pass a trace (from _shared/tracing.ts) to record every call it makes.
  */
 import { createOpenAIEmbedder, createOpenAIProvider, createOpenAITranscriber } from './openai.ts';
-import type { Embedder, LLMProvider, Transcriber } from './types.ts';
+import type { Embedder, LLMProvider, RecordCall, Transcriber } from './types.ts';
 
-export type { ChatMessage, Embedder, JsonTask, LLMProvider, Transcriber } from './types.ts';
+export type { AICall, ChatMessage, Embedder, JsonTask, LLMProvider, RecordCall, Transcriber } from './types.ts';
+
+/** Anything that records AI calls, e.g. a Langfuse trace. */
+type Recorder = { record: RecordCall };
 
 function openAIKey(): string {
   const apiKey = Deno.env.get('OPENAI_API_KEY');
@@ -25,7 +30,7 @@ function openAIKey(): string {
   return apiKey;
 }
 
-export function getLLM(): LLMProvider {
+export function getLLM(trace?: Recorder): LLMProvider {
   const provider = Deno.env.get('LLM_PROVIDER') ?? 'openai';
 
   switch (provider) {
@@ -35,13 +40,14 @@ export function getLLM(): LLMProvider {
         chatModel: Deno.env.get('LLM_CHAT_MODEL') ?? 'gpt-5.5',
         extractModel: Deno.env.get('LLM_EXTRACT_MODEL') ?? 'gpt-5.5',
         analysisModel: Deno.env.get('LLM_ANALYSIS_MODEL') ?? 'gpt-5.5',
+        record: trace?.record,
       });
     default:
       throw new Error(`Unknown LLM_PROVIDER "${provider}".`);
   }
 }
 
-export function getTranscriber(): Transcriber {
+export function getTranscriber(trace?: Recorder): Transcriber {
   const provider = Deno.env.get('TRANSCRIBE_PROVIDER') ?? 'openai';
 
   switch (provider) {
@@ -49,13 +55,14 @@ export function getTranscriber(): Transcriber {
       return createOpenAITranscriber({
         apiKey: openAIKey(),
         model: Deno.env.get('TRANSCRIBE_MODEL') ?? 'gpt-transcribe',
+        record: trace?.record,
       });
     default:
       throw new Error(`Unknown TRANSCRIBE_PROVIDER "${provider}".`);
   }
 }
 
-export function getEmbedder(): Embedder {
+export function getEmbedder(trace?: Recorder): Embedder {
   const provider = Deno.env.get('EMBED_PROVIDER') ?? 'openai';
 
   switch (provider) {
@@ -63,6 +70,7 @@ export function getEmbedder(): Embedder {
       return createOpenAIEmbedder({
         apiKey: openAIKey(),
         model: Deno.env.get('EMBED_MODEL') ?? 'text-embedding-3-small',
+        record: trace?.record,
       });
     default:
       throw new Error(`Unknown EMBED_PROVIDER "${provider}".`);

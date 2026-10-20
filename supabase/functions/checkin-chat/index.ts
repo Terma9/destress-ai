@@ -12,6 +12,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
+import { startTrace } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
 import {
   buildCheckinSystemPrompt,
@@ -42,7 +43,7 @@ async function findRelated(
   recentIds: string[],
 ): Promise<Related[]> {
   try {
-    const embedder = getEmbedder();
+    const embedder = getEmbedder(trace);
     if (!messages.length) {
       // New check-in: make sure older entries (and the community's example
       // stories, for "For you") are indexed. A no-op once they are.
@@ -65,6 +66,7 @@ export default {
     }
     const overQuota = await checkQuota(ctx.supabase);
     if (overQuota) return overQuota;
+    const trace = startTrace('checkin-chat', req);
 
     const body = await req.json().catch(() => null);
     const messages = parseMessages(body);
@@ -123,7 +125,7 @@ export default {
 
     let llm;
     try {
-      llm = getLLM();
+      llm = getLLM(trace);
     } catch (err) {
       console.error(err);
       return Response.json({ error: (err as Error).message }, { status: 500 });
