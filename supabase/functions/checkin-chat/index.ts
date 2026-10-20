@@ -12,7 +12,7 @@
  */
 import { withSupabase } from 'npm:@supabase/server@1';
 import { checkQuota } from '../_shared/quota.ts';
-import { startTrace } from '../_shared/tracing.ts';
+import { startTrace, type Trace } from '../_shared/tracing.ts';
 import { getEmbedder, getLLM, type ChatMessage } from '../_shared/llm/index.ts';
 import {
   buildCheckinSystemPrompt,
@@ -41,6 +41,7 @@ async function findRelated(
   db: Parameters<typeof indexMissing>[0],
   messages: ChatMessage[],
   recentIds: string[],
+  trace: Trace,
 ): Promise<Related[]> {
   try {
     const embedder = getEmbedder(trace);
@@ -106,7 +107,7 @@ export default {
         .maybeSingle(),
     ]);
 
-    const related = await findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id));
+    const related = await findRelated(ctx.supabase, messages, (checkins.data ?? []).map((c) => c.id), trace);
 
     const system = buildCheckinSystemPrompt(
       {
