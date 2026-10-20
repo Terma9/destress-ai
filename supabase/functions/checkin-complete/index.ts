@@ -4,7 +4,7 @@
  * Request:  POST { messages: [...], day?: 'YYYY-MM-DD' }
  * Response: { checkin, metrics, successes } — the saved check-in (with the
  *           reasons behind its suggested values), today's tracker values, and
- *           success stories created from plans that worked.
+ *           the open plans that worked (the app suggests marking them solved).
  *
  * One entry per day: if the user already checked in today (and reopened the
  * check-in to continue), the whole conversation is analyzed again and that
