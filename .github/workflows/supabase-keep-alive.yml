@@ -1,8 +1,9 @@
 # Keeps the Supabase free-plan project from being paused.
 # Supabase pauses free projects after ~7 days without activity, so this
-# makes one tiny database read every 3 days. It reads the `profiles` table
-# with the public (publishable) key: Row Level Security returns an empty
-# list, so no user data is ever exposed, but the request still reaches Postgres.
+# makes one tiny database request every 3 days. It asks for the `profiles`
+# table with the public (publishable) key. The anon role has no access, so
+# Postgres answers "permission denied" (code 42501) and no user data is ever
+# exposed, but the request still reaches the database, which counts as activity.
 name: Supabase keep-alive
 
 on:
@@ -19,8 +20,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          status=$(curl -s -o /dev/null -w "%{http_code}" \
+          body=$(curl -s -w "\nHTTP %{http_code}" \
             "$SUPABASE_URL/rest/v1/profiles?select=id&limit=1" \
             -H "apikey: $SUPABASE_PUBLISHABLE_KEY")
-          echo "Supabase responded with HTTP $status"
-          test "$status" = "200"
+          echo "$body"
+          # Success = Postgres answered: either data (200) or "permission denied" (42501).
+          echo "$body" | grep -qE 'HTTP 200|"code":"42501"'
